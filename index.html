@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0d0e1e">
+  <meta name="theme-color" content="#0d0e1e" id="meta-theme-color">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VibeHop">
@@ -12,10 +12,16 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230d0e1e'/%3E%3Ccircle cx='256' cy='256' r='160' fill='none' stroke='%23ff5376' stroke-width='20' opacity='0.4'/%3E%3Cpolygon points='256,110 380,350 132,350' fill='none' stroke='%234ef0d0' stroke-width='28' stroke-linejoin='round'/%3E%3Ccircle cx='256' cy='275' r='36' fill='%23ffd166'/%3E%3C/svg%3E">
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230d0e1e'/%3E%3Ccircle cx='256' cy='256' r='160' fill='none' stroke='%23ff5376' stroke-width='20' opacity='0.4'/%3E%3Cpolygon points='256,110 380,350 132,350' fill='none' stroke='%234ef0d0' stroke-width='28' stroke-linejoin='round'/%3E%3Ccircle cx='256' cy='275' r='36' fill='%23ffd166'/%3E%3C/svg%3E">
   <style>
+    :root {
+      --bg: #0d0e1e;
+      --mint: #4ef0d0;
+      --magenta: #ff5376;
+      --amber: #ffd166;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     html, body {
       width: 100%; height: 100dvh; overflow: hidden;
-      background: #0d0e1e;
+      background: var(--bg);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       color: #fff;
       overscroll-behavior: none;
@@ -24,54 +30,63 @@
     #ui-layer {
       position: absolute; inset: 0; pointer-events: none;
       display: flex; flex-direction: column; justify-content: space-between;
-      padding: calc(env(safe-area-inset-top, 12px) + 12px) 20px calc(env(safe-area-inset-bottom, 12px) + 14px);
+      padding: calc(env(safe-area-inset-top, 10px) + 10px) 16px calc(env(safe-area-inset-bottom, 10px) + 10px);
     }
     .hud-top {
       display: flex; justify-content: space-between; align-items: flex-start;
       width: 100%; max-width: 900px; margin: 0 auto;
     }
-    .pips-wrap { display: flex; flex-direction: column; gap: 6px; }
-    .pips { display: flex; gap: 8px; }
+    .pips-wrap { display: flex; flex-direction: column; gap: 5px; }
+    .pips { display: flex; gap: 7px; align-items: center; }
     .pip {
-      width: 28px; height: 12px; border-radius: 6px;
-      background: rgba(78, 240, 208, 0.12); border: 2px solid rgba(78, 240, 208, 0.55);
-      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      width: 26px; height: 11px; border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1); border: 2px solid var(--mint);
+      opacity: 0.35;
+      transition: all 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .pip.active {
-      background: #4ef0d0; border-color: #4ef0d0;
-      box-shadow: 0 0 12px rgba(78, 240, 208, 0.85);
+      background: var(--mint); border-color: var(--mint);
+      opacity: 1;
+      box-shadow: 0 0 12px var(--mint);
       transform: scale(1.04);
     }
-    .best-label {
-      font-size: 11px; font-weight: 700; letter-spacing: 1px;
-      color: rgba(255, 255, 255, 0.55);
+    .hud-meta {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+      color: rgba(255, 255, 255, 0.65);
+    }
+    .rank-pill {
+      color: var(--amber); background: rgba(255, 209, 102, 0.14);
+      border: 1px solid rgba(255, 209, 102, 0.4);
+      padding: 1px 6px; border-radius: 6px; font-size: 10px;
     }
     .score-box { text-align: right; }
     .score-val {
-      font-size: clamp(24px, 6vw, 32px); font-weight: 800;
+      font-size: clamp(22px, 5.5vw, 30px); font-weight: 800;
       letter-spacing: 1px; line-height: 1.05;
-      color: #4ef0d0; text-shadow: 0 0 14px rgba(78, 240, 208, 0.6);
+      color: var(--mint); text-shadow: 0 0 14px var(--mint);
       font-variant-numeric: tabular-nums;
     }
     .mult-val {
-      font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
-      color: #ffd166; text-shadow: 0 0 10px rgba(255, 209, 102, 0.6);
+      font-size: 12px; font-weight: 800; letter-spacing: 0.6px;
+      color: var(--amber); text-shadow: 0 0 10px var(--amber);
       margin-top: 2px;
     }
+
     /* Responsive Center Modal Overlay */
     #overlay-card {
-      pointer-events: none;
+      pointer-events: auto;
       align-self: center;
-      width: min(92vw, 440px);
-      background: rgba(13, 14, 30, 0.84);
-      border: 1.5px solid rgba(78, 240, 208, 0.35);
-      border-radius: 22px;
-      padding: clamp(20px, 5vw, 30px) clamp(16px, 4vw, 26px);
+      width: min(92vw, 420px);
+      background: rgba(13, 14, 30, 0.88);
+      border: 1.5px solid rgba(78, 240, 208, 0.38);
+      border-radius: 20px;
+      padding: clamp(14px, 3.5vw, 22px) clamp(14px, 4vw, 22px);
       text-align: center;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), 0 0 28px rgba(78, 240, 208, 0.14);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      transition: opacity 0.22s ease, transform 0.22s ease;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 24px rgba(78, 240, 208, 0.14);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
     #overlay-card.hidden {
       opacity: 0;
@@ -80,53 +95,118 @@
     }
     .ov-badge {
       display: inline-block;
-      font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
-      color: #ff5376; background: rgba(255, 83, 118, 0.14);
-      border: 1px solid rgba(255, 83, 118, 0.4);
-      padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+      font-size: 10px; font-weight: 800; letter-spacing: 1.4px;
+      color: var(--magenta); background: rgba(255, 83, 118, 0.14);
+      border: 1px solid rgba(255, 83, 118, 0.45);
+      padding: 3px 9px; border-radius: 999px; margin-bottom: 6px;
     }
     .ov-title {
-      font-size: clamp(24px, 7vw, 36px); font-weight: 900;
-      letter-spacing: 1px; line-height: 1.12;
-      color: #4ef0d0; text-shadow: 0 0 20px rgba(78, 240, 208, 0.65);
-      margin-bottom: 8px; word-break: break-word;
+      font-size: clamp(22px, 6.2vw, 32px); font-weight: 900;
+      letter-spacing: 1px; line-height: 1.1;
+      color: var(--mint); text-shadow: 0 0 18px var(--mint);
+      margin-bottom: 4px; word-break: break-word;
     }
     .ov-sub {
-      font-size: clamp(13px, 3.6vw, 15px); font-weight: 600;
-      line-height: 1.45; color: #ffd166;
-      text-shadow: 0 0 10px rgba(255, 209, 102, 0.4);
-      margin-bottom: 14px;
+      font-size: clamp(11px, 3.2vw, 13px); font-weight: 700;
+      line-height: 1.35; color: var(--amber);
+      margin-bottom: 10px;
+    }
+    .ov-actions {
+      display: flex; justify-content: center; align-items: center;
+      gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+    }
+    .ctrl-btn {
+      pointer-events: auto; cursor: pointer;
+      font-family: inherit; font-size: 11px; font-weight: 800;
+      letter-spacing: 0.5px; padding: 6px 12px; border-radius: 999px;
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.06); color: #fff;
+      transition: all 0.15s ease;
+    }
+    .ctrl-btn:active { transform: scale(0.95); }
+    .ctrl-btn.zen-active {
+      border-color: var(--mint); color: var(--mint);
+      background: rgba(78, 240, 208, 0.16);
+      box-shadow: 0 0 12px rgba(78, 240, 208, 0.35);
+    }
+    #share-btn {
+      display: none;
+      border-color: var(--amber); color: #0d0e1e;
+      background: var(--amber);
+      box-shadow: 0 0 14px rgba(255, 209, 102, 0.45);
+    }
+    .theme-strip {
+      display: flex; justify-content: center; gap: 6px;
+      flex-wrap: wrap; margin-bottom: 10px;
+    }
+    .theme-chip {
+      pointer-events: auto; cursor: pointer;
+      display: flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 700;
+      padding: 4px 8px; border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: rgba(255, 255, 255, 0.78);
+      transition: all 0.15s ease;
+    }
+    .theme-chip.active {
+      border-color: var(--mint); color: #fff;
+      background: rgba(255, 255, 255, 0.13);
+      box-shadow: 0 0 10px rgba(78, 240, 208, 0.28);
+    }
+    .theme-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .missions-box {
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px; padding: 8px 10px;
+      margin-bottom: 10px; text-align: left;
+    }
+    .missions-hdr {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 10px; font-weight: 800; letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.55); margin-bottom: 5px;
+    }
+    .mission-item {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; font-weight: 600; padding: 3px 0;
+      color: rgba(255, 255, 255, 0.88);
+    }
+    .mission-item.done {
+      color: var(--mint); text-decoration: line-through; opacity: 0.8;
+    }
+    .mission-prog {
+      font-size: 10px; font-weight: 800; color: var(--amber);
+      font-variant-numeric: tabular-nums;
     }
     .ov-hints {
-      display: flex; justify-content: center; flex-wrap: wrap; gap: 8px;
-      font-size: 11px; color: rgba(255, 255, 255, 0.72);
+      display: flex; justify-content: center; flex-wrap: wrap; gap: 6px;
+      font-size: 10px; color: rgba(255, 255, 255, 0.68);
       border-top: 1px solid rgba(255, 255, 255, 0.1);
-      padding-top: 12px;
+      padding-top: 8px;
     }
     .ov-hint-pill {
       background: rgba(255, 255, 255, 0.06);
-      padding: 4px 9px; border-radius: 8px;
+      padding: 3px 7px; border-radius: 6px;
     }
     .install-bar {
       pointer-events: auto; align-self: center;
-      display: flex; flex-direction: column; align-items: center; gap: 8px;
-      min-height: 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      min-height: 6px;
     }
     #install-btn {
       display: none; pointer-events: auto; cursor: pointer;
-      background: rgba(13, 14, 30, 0.9); color: #4ef0d0;
-      border: 2px solid #4ef0d0; border-radius: 999px;
-      padding: 10px 22px; font-size: 14px; font-weight: 700;
-      box-shadow: 0 0 18px rgba(78, 240, 208, 0.45);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      background: rgba(13, 14, 30, 0.92); color: var(--mint);
+      border: 2px solid var(--mint); border-radius: 999px;
+      padding: 8px 18px; font-size: 13px; font-weight: 700;
+      box-shadow: 0 0 16px rgba(78, 240, 208, 0.4);
+      transition: transform 0.15s ease;
     }
     #install-btn:active { transform: scale(0.95); }
     #ios-tip {
       display: none; background: rgba(13, 14, 30, 0.88);
-      border: 1px solid rgba(255, 209, 102, 0.5); border-radius: 12px;
-      padding: 8px 14px; font-size: 12px; color: #ffd166;
+      border: 1px solid rgba(255, 209, 102, 0.5); border-radius: 10px;
+      padding: 6px 12px; font-size: 11px; color: var(--amber);
       text-align: center; max-width: 90vw;
-      box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
     }
   </style>
 </head>
@@ -140,7 +220,10 @@
           <div class="pip active"></div>
           <div class="pip active"></div>
         </div>
-        <div class="best-label" id="best-el">BEST 0000</div>
+        <div class="hud-meta">
+          <span id="best-el">BEST 0000</span>
+          <span class="rank-pill" id="rank-el">TAPE LVL 1</span>
+        </div>
       </div>
       <div class="score-box">
         <div class="score-val" id="score-el">0000</div>
@@ -151,11 +234,27 @@
     <div id="overlay-card">
       <div class="ov-badge" id="ov-badge">115 BPM LO-FI RUNNER</div>
       <div class="ov-title" id="ov-title">VIBEHOP</div>
-      <div class="ov-sub" id="ov-sub">TAP ANYWHERE OR PRESS SPACE TO FLOW</div>
+      <div class="ov-sub" id="ov-sub">TAP CANVAS OR PRESS SPACE TO FLOW</div>
+
+      <div class="ov-actions">
+        <button type="button" class="ctrl-btn" id="zen-btn">🧘 ZEN MODE: OFF</button>
+        <button type="button" class="ctrl-btn" id="share-btn">📤 Share Vibe</button>
+      </div>
+
+      <div class="theme-strip" id="theme-strip"></div>
+
+      <div class="missions-box">
+        <div class="missions-hdr">
+          <span>📼 ACTIVE TAPE GOALS</span>
+          <span id="mission-rank-lbl">RANK 1</span>
+        </div>
+        <div id="missions-list"></div>
+      </div>
+
       <div class="ov-hints">
-        <span class="ov-hint-pill">⚡ Hold to Auto-Hop</span>
+        <span class="ov-hint-pill">🎵 On-Beat = +50 PERFECT</span>
+        <span class="ov-hint-pill">🛤️ Grind Neon Rails</span>
         <span class="ov-hint-pill">⭕ Tap Rings to Dash</span>
-        <span class="ov-hint-pill">💎 Orbs Heal +1 Shield</span>
       </div>
     </div>
 
@@ -167,11 +266,29 @@
 
 <script>
 (() => {
-  // --- PWA Registration & Install Prompts ---
+  // --- 1. DRY Utilities: Storage, Math, Haptics & PWA Setup ---
+  const posMod = (n, m) => ((n % m) + m) % m;
+
+  const Storage = {
+    getInt(key, fallback = 0) {
+      try {
+        const val = parseInt(localStorage.getItem(key), 10);
+        return Number.isNaN(val) ? fallback : val;
+      } catch (_) { return fallback; }
+    },
+    set(key, val) {
+      try { localStorage.setItem(key, String(val)); } catch (_) {}
+    }
+  };
+
+  const triggerHaptic = (pattern) => {
+    try {
+      if (navigator && typeof navigator.vibrate === 'function') navigator.vibrate(pattern);
+    } catch (_) {}
+  };
+
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
 
   let deferredPrompt = null;
@@ -193,29 +310,97 @@
     installBtn.style.display = 'none';
   });
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  if (isIOS && !isStandalone) {
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream &&
+      !(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)) {
     iosTip.style.display = 'block';
   }
 
-  // --- Web Audio API: 115 BPM Lo-Fi Synth & Pentatonic SFX ---
+  // --- 2. VH-07: Unlockable Cassette Biome Themes ---
+  const THEMES = [
+    {
+      name: 'Midnight Mint', bpm: 115,
+      bg: '#0d0e1e', mint: '#4ef0d0', magenta: '#ff5376', amber: '#ffd166',
+      pentatonic: [261.63, 311.13, 349.23, 392.00, 466.16, 523.25, 622.25],
+      chords: [
+        [261.63, 311.13, 392.00, 466.16], [207.65, 261.63, 311.13, 392.00],
+        [174.61, 207.65, 261.63, 349.23], [196.00, 233.08, 293.66, 349.23]
+      ]
+    },
+    {
+      name: 'Sakura Vapor', bpm: 110,
+      bg: '#160c24', mint: '#ff7eb6', magenta: '#42d6ff', amber: '#ffe07d',
+      pentatonic: [293.66, 349.23, 392.00, 440.00, 523.25, 587.33, 698.46],
+      chords: [
+        [293.66, 349.23, 440.00, 523.25], [233.08, 293.66, 349.23, 440.00],
+        [196.00, 233.08, 293.66, 392.00], [220.00, 261.63, 329.63, 392.00]
+      ]
+    },
+    {
+      name: 'Amber Dusk', bpm: 120,
+      bg: '#1b100e', mint: '#ffb703', magenta: '#fb5607', amber: '#8ecae6',
+      pentatonic: [246.94, 293.66, 329.63, 369.99, 440.00, 493.88, 587.33],
+      chords: [
+        [246.94, 293.66, 369.99, 440.00], [196.00, 246.94, 293.66, 369.99],
+        [164.81, 196.00, 246.94, 329.63], [185.00, 220.00, 277.18, 329.63]
+      ]
+    },
+    {
+      name: 'Matcha Rain', bpm: 106,
+      bg: '#0a1915', mint: '#80ed99', magenta: '#38a3a5', amber: '#f6f7d4',
+      pentatonic: [220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25],
+      chords: [
+        [220.00, 261.63, 329.63, 392.00], [174.61, 220.00, 261.63, 329.63],
+        [146.83, 174.61, 220.00, 293.66], [164.81, 196.00, 246.94, 293.63]
+      ]
+    }
+  ];
+
+  const COLORS = { ...THEMES[0] };
+
+  // --- 3. Web Audio Synthesizer (SOLID Single-Responsibility + DRY Voice Primitives) ---
   class LoFiAudio {
-    constructor() {
+    constructor(getState) {
+      this.getState = getState;
       this.ctx = null;
       this.isPlaying = false;
-      this.bpm = 115;
-      this.stepTime = (60 / this.bpm) / 2; // 8th notes (~0.2608s)
+      this.anchorTime = 0;
+      this.forcedBeatPhase = null;
+      this.noiseBuffer = null;
       this.step = 0;
       this.nextNoteTime = 0;
-      this.noiseBuffer = null;
-      this.pentatonic = [261.63, 311.13, 349.23, 392.00, 466.16, 523.25, 622.25];
-      this.chords = [
-        [261.63, 311.13, 392.00, 466.16], // Cm7
-        [207.65, 261.63, 311.13, 392.00], // Abmaj7
-        [174.61, 207.65, 261.63, 349.23], // Fm7
-        [196.00, 233.08, 293.66, 349.23]  // Gm7
-      ];
+      this.applyTheme(THEMES[0]);
+    }
+
+    applyTheme(theme) {
+      this.bpm = theme.bpm;
+      this.stepTime = (60 / this.bpm) / 2;
+      this.pentatonic = theme.pentatonic;
+      this.chords = theme.chords;
+    }
+
+    getTargetFilterFreq(mult = 1) {
+      const clamped = Math.max(1, Math.min(8, mult));
+      return Math.round(680 + ((clamped - 1) / 7) * 1820);
+    }
+
+    isArpActive(mult = 1) {
+      return mult >= 5;
+    }
+
+    forceBeatOffset(phase) {
+      this.forcedBeatPhase = phase;
+    }
+
+    getBeatPhase() {
+      if (typeof this.forcedBeatPhase === 'number') return this.forcedBeatPhase;
+      const beatDur = 60 / this.bpm;
+      const now = this.ctx ? this.ctx.currentTime : performance.now() / 1000;
+      return (Math.max(0, now - this.anchorTime) % beatDur) / beatDur;
+    }
+
+    isOnBeat() {
+      const phase = this.getBeatPhase();
+      return phase <= 0.22 || phase >= 0.78;
     }
 
     init() {
@@ -223,20 +408,64 @@
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         this.ctx = new AudioCtx();
-        // Pre-generate shared 0.2s white noise buffer for zero-GC percussion
-        const bufferSize = Math.floor(this.ctx.sampleRate * 0.2);
-        this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const len = Math.floor(this.ctx.sampleRate * 0.2);
+        this.noiseBuffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
         const data = this.noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
       }
-      if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
-      }
+      if (this.ctx.state === 'suspended') this.ctx.resume();
       if (!this.isPlaying) {
         this.isPlaying = true;
-        this.nextNoteTime = this.ctx.currentTime + 0.05;
+        this.anchorTime = this.ctx.currentTime;
+        this.nextNoteTime = this.ctx.currentTime + 0.04;
         this.schedule();
       }
+    }
+
+    // DRY Oscillator Helper
+    playTone({ type = 'sine', freq, endFreq, time, duration, gainPeak = 0.14, filterFreq = 0 }) {
+      if (!this.ctx) return;
+      const t = time ?? this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration * 0.85);
+
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(gainPeak, t + Math.min(0.02, duration * 0.2));
+      gain.gain.exponentialRampToValueAtTime(0.0008, t + duration);
+
+      if (filterFreq > 0) {
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(filterFreq, t);
+        osc.connect(filter);
+        filter.connect(gain);
+      } else {
+        osc.connect(gain);
+      }
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + duration + 0.01);
+    }
+
+    // DRY Filtered Noise Percussion Helper
+    playNoise({ filterType, filterFreq, gainPeak, duration, time }) {
+      if (!this.ctx || !this.noiseBuffer) return;
+      const t = time ?? this.ctx.currentTime;
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = this.noiseBuffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = filterType;
+      filter.frequency.setValueAtTime(filterFreq, t);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(gainPeak, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(t, 0, duration);
     }
 
     schedule() {
@@ -244,9 +473,8 @@
       if (document.hidden) {
         this.nextNoteTime = this.ctx.currentTime + 0.1;
       } else {
-        // Clamp lag if tab was throttled
         if (this.nextNoteTime < this.ctx.currentTime - 0.25) {
-          this.nextNoteTime = this.ctx.currentTime + 0.05;
+          this.nextNoteTime = this.ctx.currentTime + 0.04;
         }
         while (this.nextNoteTime < this.ctx.currentTime + 0.12) {
           this.playStep(this.step, this.nextNoteTime);
@@ -258,180 +486,93 @@
     }
 
     playStep(step, time) {
+      const { mult = 1, mode = 'START' } = this.getState();
+      const cutoff = this.getTargetFilterFreq(mult);
+
       if (step % 8 === 0) {
         const chord = this.chords[Math.floor(step / 8) % this.chords.length];
-        chord.forEach((freq) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          const filter = this.ctx.createBiquadFilter();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, time);
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(920, time);
-          gain.gain.setValueAtTime(0.001, time);
-          gain.gain.linearRampToValueAtTime(0.032, time + 0.14);
-          gain.gain.exponentialRampToValueAtTime(0.0008, time + this.stepTime * 7.8);
-          osc.connect(filter);
-          filter.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(time);
-          osc.stop(time + this.stepTime * 8);
-        });
+        chord.forEach((freq) =>
+          this.playTone({
+            type: 'triangle', freq, time,
+            duration: this.stepTime * 7.8, gainPeak: 0.032, filterFreq: cutoff
+          })
+        );
       }
 
       if (step % 8 === 0 || step % 8 === 3 || step % 8 === 4) {
-        this.playKick(time);
+        this.playTone({ freq: 125, endFreq: 42, time, duration: 0.18, gainPeak: 0.22 });
       }
-      if (step % 4 === 2) {
-        this.playSnare(time);
+      if (step % 4 === 2 && (mode === 'PLAY' || mult >= 2)) {
+        this.playNoise({ filterType: 'bandpass', filterFreq: 1400, gainPeak: 0.08, duration: 0.09, time });
       }
-      this.playHat(time, step % 2 === 1 ? 0.016 : 0.008);
+      if (mult >= 2 || step % 2 === 0) {
+        this.playNoise({ filterType: 'highpass', filterFreq: 6500, gainPeak: step % 2 ? 0.017 : 0.009, duration: 0.035, time });
+      }
+      if (this.isArpActive(mult)) {
+        const arpFreq = this.pentatonic[(step * 2) % this.pentatonic.length] * 1.5;
+        this.playTone({ type: 'sine', freq: arpFreq, time, duration: this.stepTime * 0.9, gainPeak: 0.028 });
+      }
     }
 
-    playKick(time) {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.frequency.setValueAtTime(125, time);
-      osc.frequency.exponentialRampToValueAtTime(42, time + 0.12);
-      gain.gain.setValueAtTime(0.22, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(time);
-      osc.stop(time + 0.19);
-    }
-
-    playSnare(time) {
-      if (!this.noiseBuffer) return;
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = this.noiseBuffer;
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1400, time);
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.08, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-      noise.start(time, 0, 0.09);
-    }
-
-    playHat(time, vol) {
-      if (!this.noiseBuffer) return;
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = this.noiseBuffer;
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'highpass';
-      filter.frequency.setValueAtTime(6500, time);
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(vol, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-      noise.start(time, 0, 0.035);
-    }
-
-    sfxJump(noteIndex = 0) {
-      if (!this.ctx) return;
-      const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+    sfxJump(noteIndex = 0, isPerfect = false) {
       const freq = this.pentatonic[noteIndex % this.pentatonic.length];
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.25, now + 0.14);
-      gain.gain.setValueAtTime(0.14, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.17);
+      this.playTone({
+        type: isPerfect ? 'triangle' : 'sine',
+        freq, endFreq: freq * (isPerfect ? 1.5 : 1.25),
+        duration: 0.16, gainPeak: isPerfect ? 0.17 : 0.13
+      });
     }
 
     sfxDash() {
       if (!this.ctx) return;
-      const now = this.ctx.currentTime;
-      [523.25, 622.25, 783.99].forEach((f, i) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(f, now + i * 0.035);
-        gain.gain.setValueAtTime(0.12, now + i * 0.035);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.035 + 0.18);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now + i * 0.035);
-        osc.stop(now + i * 0.035 + 0.19);
-      });
+      [523.25, 622.25, 783.99].forEach((freq, i) =>
+        this.playTone({ type: 'triangle', freq, time: this.ctx.currentTime + i * 0.035, duration: 0.18, gainPeak: 0.12 })
+      );
     }
 
     sfxOrb() {
       if (!this.ctx) return;
-      const now = this.ctx.currentTime;
-      [622.25, 932.33].forEach((f, i) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(f, now + i * 0.05);
-        gain.gain.setValueAtTime(0.14, now + i * 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.22);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now + i * 0.05);
-        osc.stop(now + i * 0.05 + 0.23);
-      });
+      [622.25, 932.33].forEach((freq, i) =>
+        this.playTone({ type: 'sine', freq, time: this.ctx.currentTime + i * 0.05, duration: 0.22, gainPeak: 0.14 })
+      );
     }
 
     sfxShieldBreak() {
-      if (!this.ctx) return;
-      const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(190, now);
-      osc.frequency.linearRampToValueAtTime(65, now + 0.28);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.31);
+      this.playTone({ type: 'sawtooth', freq: 190, endFreq: 65, duration: 0.3, gainPeak: 0.15 });
     }
   }
 
-  // --- Game Engine & State ---
+  // --- 4. Core State & DOM References ---
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  const scoreEl = document.getElementById('score-el');
-  const bestEl = document.getElementById('best-el');
-  const multEl = document.getElementById('mult-el');
-  const pipEls = Array.from(document.querySelectorAll('.pip'));
-  const overlayCard = document.getElementById('overlay-card');
-  const ovBadge = document.getElementById('ov-badge');
-  const ovTitle = document.getElementById('ov-title');
-  const ovSub = document.getElementById('ov-sub');
-
-  const COLORS = {
-    bg: '#0d0e1e',
-    mint: '#4ef0d0',
-    magenta: '#ff5376',
-    amber: '#ffd166'
+  const ui = {
+    score: document.getElementById('score-el'),
+    best: document.getElementById('best-el'),
+    rank: document.getElementById('rank-el'),
+    mult: document.getElementById('mult-el'),
+    pips: Array.from(document.querySelectorAll('.pip')),
+    card: document.getElementById('overlay-card'),
+    badge: document.getElementById('ov-badge'),
+    title: document.getElementById('ov-title'),
+    sub: document.getElementById('ov-sub'),
+    zenBtn: document.getElementById('zen-btn'),
+    shareBtn: document.getElementById('share-btn'),
+    themeStrip: document.getElementById('theme-strip'),
+    missionsList: document.getElementById('missions-list'),
+    missionRank: document.getElementById('mission-rank-lbl'),
+    metaTheme: document.getElementById('meta-theme-color')
   };
 
-  const audio = new LoFiAudio();
-  let W = 0, H = 0, DPR = 1, groundY = 0;
-
-  let bestScore = 0;
-  try {
-    bestScore = parseInt(localStorage.getItem('vibehop_best') || '0', 10) || 0;
-  } catch (_) {}
+  let bestScore = Storage.getInt('vibehop_best', 0);
 
   const state = {
-    mode: 'START', // START, PLAY, OVER
+    mode: 'START',
+    zenMode: false,
+    themeIdx: Storage.getInt('vibehop_theme', 0),
+    vibeRank: Storage.getInt('vibehop_rank', 1),
     score: 0,
     mult: 1,
+    maxMult: 1,
     pips: 3,
     speed: 6.2,
     distance: 0,
@@ -448,8 +589,151 @@
   const player = {
     x: 0, y: 0, r: 20,
     vy: 0, gravity: 0.68, jumpForce: -13.4,
-    dashFrames: 0, rot: 0, grounded: true
+    dashFrames: 0, rot: 0, grounded: true, grinding: false
   };
+
+  const audio = new LoFiAudio(() => state);
+  let W = 0, H = 0, DPR = 1, groundY = 0;
+
+  const obstacles = [], rings = [], orbs = [], rails = [], particles = [], floatingTexts = [];
+  const dustMotes = Array.from({ length: 36 }, () => ({
+    x: Math.random() * 1200, y: Math.random() * 800,
+    r: 1.2 + Math.random() * 2.2, s: 0.3 + Math.random() * 0.7, a: 0.25 + Math.random() * 0.55
+  }));
+
+  function spawnFloatingText(x, y, text, color) {
+    let targetY = y;
+    for (const ft of floatingTexts) {
+      if (ft.life > 0.45 && Math.abs(ft.y - targetY) < 18) {
+        targetY = ft.y - 20;
+      }
+    }
+    floatingTexts.push({ x, y: targetY, text, color, life: 1.0, vy: -1.4 });
+  }
+
+  function spawnBurst(x, y, color, count = 16) {
+    for (let i = 0; i < count; i++) {
+      const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+      const spd = 2 + Math.random() * 6.5;
+      particles.push({
+        x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+        r: 2.5 + Math.random() * 3.5, color, life: 1, decay: 0.025 + Math.random() * 0.02
+      });
+    }
+  }
+
+  // --- 5. VH-08: 3-Goal Tape Deck Mission Tracker ---
+  const MISSION_TEMPLATES = [
+    { type: 'orbs', target: 5, label: 'Collect 5 Prism Orbs' },
+    { type: 'rings', target: 3, label: 'Dash through 3 Jump Rings' },
+    { type: 'perfects', target: 6, label: 'Land 6 On-Beat PERFECT Jumps' },
+    { type: 'rails', target: 2, label: 'Grind 2 Elevated Neon Rails' },
+    { type: 'mult', target: 5, label: 'Reach 5x VIBE Multiplier' },
+    { type: 'score', target: 1500, label: 'Score 1,500 Pts in a Flow' }
+  ];
+
+  let activeMissions = [];
+
+  function renderMissionsDOM() {
+    ui.missionRank.textContent = `TAPE LVL ${state.vibeRank}`;
+    ui.rank.textContent = `TAPE LVL ${state.vibeRank}`;
+    ui.missionsList.innerHTML = activeMissions.map((m) => `
+      <div class="mission-item ${m.done ? 'done' : ''}">
+        <span>${m.done ? '✓ ' : '○ '}${m.label}</span>
+        <span class="mission-prog">${Math.min(m.progress, m.target)}/${m.target}</span>
+      </div>
+    `).join('');
+  }
+
+  function generateMissionsSet(seedOffset = 0) {
+    const start = (state.vibeRank + seedOffset) % MISSION_TEMPLATES.length;
+    activeMissions = [0, 1, 2].map((i) => ({
+      ...MISSION_TEMPLATES[(start + i * 2) % MISSION_TEMPLATES.length],
+      progress: 0,
+      done: false
+    }));
+    renderMissionsDOM();
+  }
+
+  function recordMissionProgress(type, amount = 1, isAbsolute = false) {
+    let completedAny = false;
+    activeMissions.forEach((m) => {
+      if (m.type === type && !m.done) {
+        m.progress = isAbsolute ? Math.max(m.progress, amount) : m.progress + amount;
+        if (m.progress >= m.target) {
+          m.progress = m.target;
+          m.done = true;
+          completedAny = true;
+        }
+      }
+    });
+    if (completedAny) {
+      spawnFloatingText(player.x, player.y - 36, '📼 GOAL COMPLETE!', COLORS.mint);
+      if (activeMissions.every((m) => m.done)) {
+        state.vibeRank++;
+        Storage.set('vibehop_rank', state.vibeRank);
+        spawnFloatingText(player.x, player.y - 60, `★ TAPE LVL ${state.vibeRank} ★`, COLORS.amber);
+        generateMissionsSet(state.vibeRank);
+      }
+    }
+    renderMissionsDOM();
+  }
+
+  // --- 6. Theme, Zen & Share Controllers ---
+  function selectTheme(idx) {
+    const safeIdx = posMod(idx, THEMES.length);
+    state.themeIdx = safeIdx;
+    const t = THEMES[safeIdx];
+    Object.assign(COLORS, { bg: t.bg, mint: t.mint, magenta: t.magenta, amber: t.amber });
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--bg', t.bg);
+    rootStyle.setProperty('--mint', t.mint);
+    rootStyle.setProperty('--magenta', t.magenta);
+    rootStyle.setProperty('--amber', t.amber);
+    if (ui.metaTheme) ui.metaTheme.setAttribute('content', t.bg);
+    audio.applyTheme(t);
+    Storage.set('vibehop_theme', safeIdx);
+
+    ui.themeStrip.innerHTML = THEMES.map((th, i) => `
+      <button type="button" class="theme-chip ${i === safeIdx ? 'active' : ''}" data-theme="${i}">
+        <span class="theme-dot" style="background:${th.mint};box-shadow:0 0 6px ${th.mint}"></span>
+        <span>${th.name}</span>
+      </button>
+    `).join('');
+    ui.themeStrip.querySelectorAll('.theme-chip').forEach((btn) =>
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectTheme(parseInt(btn.getAttribute('data-theme'), 10));
+      })
+    );
+  }
+
+  function setZenMode(enabled) {
+    state.zenMode = Boolean(enabled);
+    ui.zenBtn.textContent = state.zenMode ? '🧘 ZEN MODE: ON (∞)' : '🧘 ZEN MODE: OFF';
+    ui.zenBtn.classList.toggle('zen-active', state.zenMode);
+    updateHUD();
+  }
+
+  ui.zenBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setZenMode(!state.zenMode);
+  });
+
+  ui.shareBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const s = Math.floor(state.score);
+    const shareText = `🎧 VibeHop Score: ${s} (${state.maxMult}x VIBE)\n📼 Tape Lvl ${state.vibeRank} • ${THEMES[state.themeIdx].name}\nCan you beat my flow?`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'VibeHop — Lo-Fi Rhythm Runner', text: shareText, url: window.location.href });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(`${shareText} ${window.location.href}`);
+        ui.shareBtn.textContent = '✓ Copied Vibe!';
+        setTimeout(() => { ui.shareBtn.textContent = '📤 Share Vibe'; }, 2000);
+      }
+    } catch (_) {}
+  });
 
   function resize() {
     DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -460,139 +744,90 @@
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     groundY = Math.floor(H * 0.76);
     player.x = Math.min(130, Math.max(68, W * 0.22));
-    if (state.mode !== 'PLAY' || player.grounded) {
-      player.y = groundY - player.r;
-    }
+    if (state.mode !== 'PLAY' || player.grounded) player.y = groundY - player.r;
   }
   window.addEventListener('resize', resize);
   resize();
-
-  let obstacles = [];
-  let rings = [];
-  let orbs = [];
-  let particles = [];
-  let dustMotes = Array.from({ length: 36 }, () => ({
-    x: Math.random() * 1200,
-    y: Math.random() * 800,
-    r: 1.2 + Math.random() * 2.2,
-    s: 0.3 + Math.random() * 0.7,
-    a: 0.25 + Math.random() * 0.55
-  }));
 
   function updateHUD() {
     const s = Math.floor(state.score);
     if (s > bestScore) {
       bestScore = s;
-      try { localStorage.setItem('vibehop_best', String(bestScore)); } catch (_) {}
+      Storage.set('vibehop_best', bestScore);
     }
-    scoreEl.textContent = String(s).padStart(4, '0');
-    bestEl.textContent = `BEST ${String(bestScore).padStart(4, '0')}`;
-    multEl.textContent = `${state.mult}x VIBE`;
-    pipEls.forEach((el, idx) => {
-      el.classList.toggle('active', idx < state.pips);
-    });
+    ui.score.textContent = String(s).padStart(4, '0');
+    ui.best.textContent = `BEST ${String(bestScore).padStart(4, '0')}`;
+    ui.mult.textContent = state.zenMode ? `∞ ZEN • ${state.mult}x` : `${state.mult}x VIBE`;
+    ui.pips.forEach((el, idx) => el.classList.toggle('active', state.zenMode || idx < state.pips));
   }
 
   function showOverlay(mode) {
     if (mode === 'PLAY') {
-      overlayCard.classList.add('hidden');
+      ui.card.classList.add('hidden');
       return;
     }
-    overlayCard.classList.remove('hidden');
+    ui.card.classList.remove('hidden');
     if (mode === 'START') {
-      ovBadge.textContent = '115 BPM LO-FI RUNNER';
-      ovTitle.textContent = 'VIBEHOP';
-      ovSub.textContent = 'TAP ANYWHERE OR PRESS SPACE TO FLOW';
+      ui.badge.textContent = `${THEMES[state.themeIdx].bpm} BPM LO-FI RUNNER`;
+      ui.title.textContent = 'VIBEHOP';
+      ui.sub.textContent = 'TAP CANVAS OR PRESS SPACE TO FLOW';
+      ui.shareBtn.style.display = 'none';
     } else if (mode === 'OVER') {
       const s = Math.floor(state.score);
-      ovBadge.textContent = s >= bestScore && s > 0 ? '★ NEW HIGH VIBE ★' : 'VIBE CHECK COMPLETE';
-      ovTitle.textContent = `SCORE: ${s}`;
-      ovSub.textContent = 'TAP ANYWHERE OR PRESS SPACE TO FLOW AGAIN';
+      ui.badge.textContent = s >= bestScore && s > 0 ? '★ NEW HIGH VIBE ★' : 'VIBE CHECK COMPLETE';
+      ui.title.textContent = `SCORE: ${s}`;
+      ui.sub.textContent = 'TAP CANVAS OR PRESS SPACE TO FLOW AGAIN';
+      ui.shareBtn.style.display = 'inline-block';
     }
   }
 
   function resetGame() {
-    state.mode = 'PLAY';
-    state.score = 0;
-    state.mult = 1;
-    state.pips = 3;
-    state.speed = 6.2;
-    state.distance = 0;
-    state.nextSpawnDist = 280;
-    state.invulnFrames = 0;
-    state.shakeFrames = 0;
-    state.jumpBuffer = 0;
-    state.coyoteFrames = 6;
+    Object.assign(state, {
+      mode: 'PLAY', score: 0, mult: 1, maxMult: 1, pips: 3,
+      speed: 6.2, distance: 0, nextSpawnDist: 280,
+      invulnFrames: 0, shakeFrames: 0, jumpBuffer: 0, coyoteFrames: 6
+    });
     player.x = Math.min(130, Math.max(68, W * 0.22));
     player.y = groundY - player.r;
-    player.vy = 0;
-    player.dashFrames = 0;
-    player.grounded = true;
-    obstacles = [];
-    rings = [];
-    orbs = [];
-    particles = [];
+    Object.assign(player, { vy: 0, dashFrames: 0, grounded: true, grinding: false });
+    [obstacles, rings, orbs, rails, particles, floatingTexts].forEach((arr) => { arr.length = 0; });
     updateHUD();
     showOverlay('PLAY');
   }
 
-  function spawnBurst(x, y, color, count = 16) {
-    for (let i = 0; i < count; i++) {
-      const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
-      const spd = 2 + Math.random() * 6.5;
-      particles.push({
-        x, y,
-        vx: Math.cos(ang) * spd,
-        vy: Math.sin(ang) * spd,
-        r: 2.5 + Math.random() * 3.5,
-        color,
-        life: 1,
-        decay: 0.025 + Math.random() * 0.02
-      });
-    }
-  }
-
-  // --- Input Handling (Spacebar, Up Arrow, Full-Screen Touch/Mouse) ---
+  // --- 7. Unified Input & Gameplay Physics ---
   function triggerPress() {
     audio.init();
     state.holdingInput = true;
 
-    if (state.mode === 'START') {
-      resetGame();
-      return;
-    }
+    if (state.mode === 'START') { resetGame(); return; }
     if (state.mode === 'OVER') {
-      if (state.overLockoutFrames <= 0) {
-        resetGame();
-      }
+      if (state.overLockoutFrames <= 0) resetGame();
       return;
     }
 
-    // Check if inside or close to a floating Jump Ring for mid-air dash
     for (const ring of rings) {
-      if (!ring.used) {
-        const dx = player.x - ring.x;
-        const dy = player.y - ring.y;
-        if (Math.hypot(dx, dy) <= ring.r + player.r * 1.55) {
-          ring.used = true;
-          player.vy = -8.5;
-          player.dashFrames = 16;
-          state.score += 50 * state.mult;
-          audio.sfxDash();
-          spawnBurst(ring.x, ring.y, COLORS.amber, 22);
-          updateHUD();
-          return;
-        }
+      if (!ring.used && Math.hypot(player.x - ring.x, player.y - ring.y) <= ring.r + player.r * 1.55) {
+        ring.used = true;
+        player.vy = -8.5;
+        player.dashFrames = 16;
+        const onBeat = audio.isOnBeat();
+        const pts = (onBeat ? 100 : 50) * state.mult;
+        state.score += pts;
+        audio.sfxDash();
+        triggerHaptic([15, 30, 25]);
+        spawnBurst(ring.x, ring.y, COLORS.amber, 22);
+        spawnFloatingText(ring.x, ring.y - 24, onBeat ? `⚡ PERFECT DASH +${pts}` : `DASH +${pts}`, COLORS.amber);
+        recordMissionProgress('rings', 1);
+        if (onBeat) recordMissionProgress('perfects', 1);
+        updateHUD();
+        return;
       }
     }
-
-    // Otherwise buffer a jump (6-frame jump buffer)
     state.jumpBuffer = 6;
   }
 
-  function triggerRelease() {
-    state.holdingInput = false;
-  }
+  function triggerRelease() { state.holdingInput = false; }
 
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -601,91 +836,98 @@
     }
   });
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp') {
-      triggerRelease();
-    }
+    if (e.code === 'Space' || e.code === 'ArrowUp') triggerRelease();
   });
-  canvas.addEventListener('pointerdown', (e) => {
+  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); triggerPress(); });
+  ui.card.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
     e.preventDefault();
     triggerPress();
   });
   window.addEventListener('pointerup', triggerRelease);
   window.addEventListener('pointercancel', triggerRelease);
 
-  function executeJump(dt) {
+  function executeJump() {
+    const onBeat = audio.isOnBeat();
     player.vy = player.jumpForce;
     player.grounded = false;
+    player.grinding = false;
     state.coyoteFrames = 0;
     state.jumpBuffer = 0;
-    audio.sfxJump(state.jumpNoteIdx++);
-    spawnBurst(player.x, groundY, COLORS.mint, 12);
+    audio.sfxJump(state.jumpNoteIdx++, onBeat);
+    triggerHaptic(12);
+    spawnBurst(player.x, player.y + player.r, onBeat ? COLORS.amber : COLORS.mint, onBeat ? 16 : 11);
+
+    if (onBeat) {
+      const pts = 50 * state.mult;
+      state.score += pts;
+      spawnFloatingText(player.x, player.y - 26, `⚡ PERFECT VIBE +${pts}`, COLORS.amber);
+      recordMissionProgress('perfects', 1);
+    }
   }
 
-  // --- Procedural Spawner ---
   function spawnEntities() {
     if (state.distance < state.nextSpawnDist) return;
-    const gap = 290 + Math.random() * 195;
+    const gap = 300 + Math.random() * 190;
     state.nextSpawnDist = state.distance + gap;
 
     const roll = Math.random();
     const spawnX = W + 80;
-
-    // Obstacle neon spike
     const h = 38 + Math.random() * 26;
     const w = 34 + Math.random() * 14;
     obstacles.push({ x: spawnX, y: groundY - h, w, h, shattered: false });
 
-    // Floating Jump Ring above tall obstacles or mid-gap
-    if (roll > 0.38) {
-      rings.push({
-        x: spawnX + (Math.random() > 0.5 ? 0 : gap * 0.48),
-        y: groundY - 120 - Math.random() * 45,
-        r: 28,
-        used: false,
-        pulse: 0
-      });
+    if (roll > 0.45) {
+      const railW = 150 + Math.random() * 110;
+      const railY = groundY - 88 - Math.random() * 28;
+      rails.push({ x: spawnX + 65, y: railY, w: railW, grinded: false });
+      orbs.push({ x: spawnX + 65 + railW * 0.5, y: railY - 26, r: 14, collected: false, angle: 0 });
+    } else if (roll > 0.2) {
+      rings.push({ x: spawnX + (Math.random() > 0.5 ? 0 : gap * 0.48), y: groundY - 120 - Math.random() * 45, r: 28, used: false, pulse: 0 });
     }
 
-    // Collectible Neon Prism Orb
     if (Math.random() > 0.35) {
-      orbs.push({
-        x: spawnX + gap * 0.5,
-        y: groundY - 55 - Math.random() * 90,
-        r: 14,
-        collected: false,
-        angle: 0
-      });
+      orbs.push({ x: spawnX + gap * 0.5, y: groundY - 55 - Math.random() * 90, r: 14, collected: false, angle: 0 });
     }
   }
 
-  // --- Main Update Loop (Delta-Time Normalized to 60fps) ---
+  function tickParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= p.decay * dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+      const ft = floatingTexts[i];
+      ft.y += (ft.vy || -1.2) * dt;
+      ft.life -= 0.024 * dt;
+      if (ft.life <= 0) floatingTexts.splice(i, 1);
+    }
+  }
+
   function update(dt) {
     if (state.mode === 'OVER') {
       if (state.overLockoutFrames > 0) state.overLockoutFrames -= dt;
       if (state.shakeFrames > 0) state.shakeFrames = Math.max(0, state.shakeFrames - dt);
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.life -= p.decay * dt;
-        if (p.life <= 0) particles.splice(i, 1);
-      }
+      tickParticles(dt);
       return;
     }
-
     if (state.mode !== 'PLAY') return;
 
     state.speed = Math.min(11.5, 6.2 + state.distance * 0.00018);
+    state.maxMult = Math.max(state.maxMult, state.mult);
     const curSpeed = (player.dashFrames > 0 ? state.speed * 1.65 : state.speed) * dt;
     state.distance += curSpeed;
     state.score += (curSpeed * 0.08) * state.mult;
+    recordMissionProgress('score', Math.floor(state.score), true);
 
     if (state.invulnFrames > 0) state.invulnFrames = Math.max(0, state.invulnFrames - dt);
     if (state.shakeFrames > 0) state.shakeFrames = Math.max(0, state.shakeFrames - dt);
     if (player.dashFrames > 0) player.dashFrames = Math.max(0, player.dashFrames - dt);
 
-    // Coyote time & Jump buffering (6 frames each + Hold-to-auto-jump)
-    if (player.grounded) {
+    if (player.grounded || player.grinding) {
       state.coyoteFrames = 6;
       if (state.holdingInput) state.jumpBuffer = 6;
     } else if (state.coyoteFrames > 0) {
@@ -694,73 +936,86 @@
 
     if (state.jumpBuffer > 0) {
       state.jumpBuffer = Math.max(0, state.jumpBuffer - dt);
-      if (state.coyoteFrames > 0) {
-        executeJump(dt);
+      if (state.coyoteFrames > 0) executeJump();
+    }
+
+    const prevBottom = player.y + player.r;
+    player.vy = player.dashFrames > 0 ? player.vy * Math.pow(0.85, dt) : player.vy + player.gravity * dt;
+    player.y += player.vy * dt;
+
+    player.grinding = false;
+    for (let i = rails.length - 1; i >= 0; i--) {
+      const rl = rails[i];
+      rl.x -= curSpeed;
+      const withinX = player.x >= rl.x - player.r * 0.5 && player.x <= rl.x + rl.w + player.r * 0.5;
+      const newBottom = player.y + player.r;
+      if (withinX && player.vy >= 0 && prevBottom <= rl.y + 14 && newBottom >= rl.y - 4) {
+        player.y = rl.y - player.r;
+        player.vy = 0;
+        player.grounded = true;
+        player.grinding = true;
+        state.score += 1.5 * state.mult * dt;
+        if (!rl.grinded) {
+          rl.grinded = true;
+          recordMissionProgress('rails', 1);
+          spawnFloatingText(player.x, rl.y - 28, '⚡ RAIL GRIND!', COLORS.amber);
+        }
+        if (Math.random() < 0.85) {
+          particles.push({
+            x: player.x - 6, y: rl.y,
+            vx: -state.speed * (0.5 + Math.random() * 0.5), vy: -1 - Math.random() * 2.4,
+            r: 2.2 + Math.random() * 2, color: COLORS.amber, life: 0.9, decay: 0.06
+          });
+        }
+      }
+      if (rl.x + rl.w < -80) rails.splice(i, 1);
+    }
+
+    if (!player.grinding) {
+      if (player.y >= groundY - player.r) {
+        player.y = groundY - player.r;
+        player.vy = 0;
+        player.grounded = true;
+      } else {
+        player.grounded = false;
       }
     }
 
-    // Physics
-    if (player.dashFrames > 0) {
-      player.vy *= Math.pow(0.85, dt);
-    } else {
-      player.vy += player.gravity * dt;
-    }
-    player.y += player.vy * dt;
+    player.rot += player.grinding ? 0 : (curSpeed * 0.045);
 
-    if (player.y >= groundY - player.r) {
-      player.y = groundY - player.r;
-      player.vy = 0;
-      player.grounded = true;
-    } else {
-      player.grounded = false;
-    }
-
-    player.rot += (curSpeed * 0.045);
-
-    // Trail particles
     if (Math.random() < 0.65 * dt || player.dashFrames > 0) {
       particles.push({
-        x: player.x - player.r * 0.6,
-        y: player.y + (Math.random() - 0.5) * 14,
-        vx: -(curSpeed / dt) * 0.4,
-        vy: (Math.random() - 0.5) * 1.2,
+        x: player.x - player.r * 0.6, y: player.y + (Math.random() - 0.5) * 14,
+        vx: -(curSpeed / dt) * 0.4, vy: (Math.random() - 0.5) * 1.2,
         r: player.dashFrames > 0 ? 4.5 : 2.5,
-        color: player.dashFrames > 0 ? COLORS.amber : COLORS.mint,
-        life: 1,
-        decay: 0.05
+        color: player.dashFrames > 0 ? COLORS.amber : COLORS.mint, life: 1, decay: 0.05
       });
     }
 
     spawnEntities();
 
-    // Update Obstacles & 70% Inner Hitbox Collision
     const hitR = player.r * 0.7;
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const ob = obstacles[i];
       ob.x -= curSpeed;
       if (!ob.shattered) {
-        const innerPadX = ob.w * 0.15;
-        const innerPadY = ob.h * 0.15;
-        const rx = ob.x + innerPadX;
-        const ry = ob.y + innerPadY;
-        const rw = ob.w * 0.7;
-        const rh = ob.h * 0.7;
-
-        const cx = Math.max(rx, Math.min(player.x, rx + rw));
-        const cy = Math.max(ry, Math.min(player.y, ry + rh));
+        const rx = ob.x + ob.w * 0.15, ry = ob.y + ob.h * 0.15;
+        const cx = Math.max(rx, Math.min(player.x, rx + ob.w * 0.7));
+        const cy = Math.max(ry, Math.min(player.y, ry + ob.h * 0.7));
         if (Math.hypot(player.x - cx, player.y - cy) < hitR) {
           ob.shattered = true;
           spawnBurst(ob.x + ob.w / 2, ob.y + ob.h / 2, COLORS.magenta, 24);
-          if (state.invulnFrames <= 0 && player.dashFrames <= 0) {
+          if (!state.zenMode && state.invulnFrames <= 0 && player.dashFrames <= 0) {
             state.pips--;
             state.mult = Math.max(1, state.mult - 1);
-            state.invulnFrames = 90; // 1.5s at 60fps
+            state.invulnFrames = 90;
             state.shakeFrames = 14;
             audio.sfxShieldBreak();
+            triggerHaptic(60);
             updateHUD();
             if (state.pips <= 0) {
               state.mode = 'OVER';
-              state.overLockoutFrames = 24; // 0.4s lockout prevents accidental tap-through
+              state.overLockoutFrames = 24;
               state.holdingInput = false;
               showOverlay('OVER');
             }
@@ -770,7 +1025,6 @@
       if (ob.x + ob.w < -60) obstacles.splice(i, 1);
     }
 
-    // Update Jump Rings
     for (let i = rings.length - 1; i >= 0; i--) {
       const rg = rings[i];
       rg.x -= curSpeed;
@@ -778,7 +1032,6 @@
       if (rg.x + rg.r < -60) rings.splice(i, 1);
     }
 
-    // Update Collectible Prism Orbs
     for (let i = orbs.length - 1; i >= 0; i--) {
       const orb = orbs[i];
       orb.x -= curSpeed;
@@ -787,43 +1040,51 @@
         orb.collected = true;
         if (state.pips < 3) state.pips++;
         state.mult = Math.min(8, state.mult + 1);
-        state.score += 100 * state.mult;
+        state.maxMult = Math.max(state.maxMult, state.mult);
+        const pts = 100 * state.mult;
+        state.score += pts;
         audio.sfxOrb();
+        triggerHaptic(18);
         spawnBurst(orb.x, orb.y, COLORS.mint, 18);
+        spawnFloatingText(orb.x, orb.y - 18, `+${pts} (${state.mult}x)`, COLORS.mint);
+        recordMissionProgress('orbs', 1);
+        recordMissionProgress('mult', state.mult, true);
         updateHUD();
       }
       if (orb.x + orb.r < -60 || orb.collected) orbs.splice(i, 1);
     }
 
-    // Update Particles
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.life -= p.decay * dt;
-      if (p.life <= 0) particles.splice(i, 1);
-    }
-
+    tickParticles(dt);
     updateHUD();
   }
 
-  // --- Lo-Fi Neon Glow Renderer (3-Layer Parallax) ---
+  // --- 8. DRY Canvas Renderer with Glow Helper ---
+  function withGlow(color, blur, drawFn) {
+    ctx.save();
+    ctx.shadowBlur = blur;
+    ctx.shadowColor = color;
+    drawFn();
+    ctx.restore();
+  }
+
   function draw() {
     ctx.save();
     if (state.shakeFrames > 0) {
       ctx.translate((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
     }
 
-    // Deep night background
+    const beatPhase = audio.getBeatPhase();
+    const beatPulse = Math.pow(Math.max(0, 1 - beatPhase * 2.2), 2);
+
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Layer 1: Distant Gradient Mountains (positive wrap)
+    // Layer 1: Distant Gradient Mountains
     const mSpan = 420;
-    const mOffset = ((state.distance * 0.12) % mSpan + mSpan) % mSpan;
+    const mOffset = posMod(state.distance * 0.12, mSpan);
     const grad = ctx.createLinearGradient(0, groundY - 240, 0, groundY);
-    grad.addColorStop(0, 'rgba(255, 83, 118, 0.16)');
-    grad.addColorStop(1, 'rgba(13, 14, 30, 0.95)');
+    grad.addColorStop(0, COLORS.magenta + '2e');
+    grad.addColorStop(1, COLORS.bg);
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(0, groundY);
@@ -831,29 +1092,28 @@
     for (let i = -1; i <= mCount; i++) {
       const base = i * 210 - mOffset;
       const worldIdx = Math.floor((state.distance * 0.12 + i * 210) / 210);
-      const peakH = 175 + Math.sin(worldIdx * 1.7) * 45;
+      const peakH = 175 + Math.sin(worldIdx * 1.7) * 45 + beatPulse * 6;
       ctx.lineTo(base + 105, groundY - peakH);
       ctx.lineTo(base + 210, groundY);
     }
     ctx.closePath();
     ctx.fill();
 
-    // Layer 2: Glowing Neon Pillars (positive modulo height)
+    // Layer 2: Beat-Synced Glowing Neon Pillars
     const pSpan = 240;
-    const pOffset = ((state.distance * 0.32) % pSpan + pSpan) % pSpan;
-    ctx.save();
-    ctx.shadowBlur = 14;
-    ctx.shadowColor = COLORS.magenta;
-    ctx.strokeStyle = 'rgba(255, 83, 118, 0.25)';
-    ctx.lineWidth = 2;
-    const pCount = Math.ceil(W / pSpan) + 2;
-    for (let i = -1; i <= pCount; i++) {
-      const px = i * pSpan - pOffset;
-      const worldPillar = Math.floor((state.distance * 0.32) / pSpan) + i;
-      const ph = 95 + (((worldPillar * 53) % 95 + 95) % 95);
-      ctx.strokeRect(px, groundY - ph, 26, ph);
-    }
-    ctx.restore();
+    const pOffset = posMod(state.distance * 0.32, pSpan);
+    withGlow(COLORS.magenta, 12 + beatPulse * 12, () => {
+      ctx.strokeStyle = COLORS.magenta;
+      ctx.globalAlpha = 0.24 + beatPulse * 0.18;
+      ctx.lineWidth = 2;
+      const pCount = Math.ceil(W / pSpan) + 2;
+      for (let i = -1; i <= pCount; i++) {
+        const px = i * pSpan - pOffset;
+        const worldPillar = Math.floor((state.distance * 0.32) / pSpan) + i;
+        const ph = 95 + posMod(worldPillar * 53, 95) + beatPulse * 10;
+        ctx.strokeRect(px, groundY - ph, 26, ph);
+      }
+    });
 
     // Layer 3: Ambient Floating Dust Motes
     ctx.fillStyle = COLORS.amber;
@@ -868,101 +1128,126 @@
     ctx.globalAlpha = 1;
 
     // Neon Horizon Line
-    ctx.save();
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = COLORS.mint;
-    ctx.strokeStyle = COLORS.mint;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, groundY);
-    ctx.lineTo(W, groundY);
-    ctx.stroke();
-    ctx.restore();
+    withGlow(COLORS.mint, 18 + beatPulse * 14, () => {
+      ctx.strokeStyle = COLORS.mint;
+      ctx.lineWidth = 3 + beatPulse * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(W, groundY);
+      ctx.stroke();
+    });
+
+    // Elevated Neon Grind Rails
+    rails.forEach((rl) =>
+      withGlow(COLORS.amber, 18 + beatPulse * 8, () => {
+        ctx.strokeStyle = COLORS.amber;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(rl.x, rl.y);
+        ctx.lineTo(rl.x + rl.w, rl.y);
+        ctx.stroke();
+      })
+    );
 
     // Jump Rings
     rings.forEach((rg) => {
       if (rg.used) return;
-      ctx.save();
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = COLORS.amber;
-      ctx.strokeStyle = COLORS.amber;
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.arc(rg.x, rg.y, rg.r + Math.sin(rg.pulse) * 4, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      withGlow(COLORS.amber, 20 + beatPulse * 12, () => {
+        ctx.strokeStyle = COLORS.amber;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(rg.x, rg.y, rg.r + Math.sin(rg.pulse) * 3 + beatPulse * 4, 0, Math.PI * 2);
+        ctx.stroke();
+      });
     });
 
     // Collectible Prism Orbs
-    orbs.forEach((orb) => {
-      ctx.save();
-      ctx.translate(orb.x, orb.y);
-      ctx.rotate(orb.angle);
-      ctx.shadowBlur = 18;
-      ctx.shadowColor = COLORS.mint;
-      ctx.fillStyle = COLORS.mint;
-      ctx.beginPath();
-      ctx.moveTo(0, -orb.r);
-      ctx.lineTo(orb.r, 0);
-      ctx.lineTo(0, orb.r);
-      ctx.lineTo(-orb.r, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    });
+    orbs.forEach((orb) =>
+      withGlow(COLORS.mint, 18, () => {
+        ctx.translate(orb.x, orb.y);
+        ctx.rotate(orb.angle);
+        ctx.fillStyle = COLORS.mint;
+        ctx.beginPath();
+        ctx.moveTo(0, -orb.r);
+        ctx.lineTo(orb.r, 0);
+        ctx.lineTo(0, orb.r);
+        ctx.lineTo(-orb.r, 0);
+        ctx.closePath();
+        ctx.fill();
+      })
+    );
 
     // Obstacles
     obstacles.forEach((ob) => {
       if (ob.shattered) return;
-      ctx.save();
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = COLORS.magenta;
-      ctx.fillStyle = COLORS.magenta;
-      ctx.beginPath();
-      ctx.moveTo(ob.x, ob.y + ob.h);
-      ctx.lineTo(ob.x + ob.w / 2, ob.y);
-      ctx.lineTo(ob.x + ob.w, ob.y + ob.h);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+      withGlow(COLORS.magenta, 20, () => {
+        ctx.fillStyle = COLORS.magenta;
+        ctx.beginPath();
+        ctx.moveTo(ob.x, ob.y + ob.h);
+        ctx.lineTo(ob.x + ob.w / 2, ob.y);
+        ctx.lineTo(ob.x + ob.w, ob.y + ob.h);
+        ctx.closePath();
+        ctx.fill();
+      });
     });
 
     // Player Avatar
     const blink = state.invulnFrames > 0 && Math.floor(state.invulnFrames / 4) % 2 === 0;
     if (!blink) {
-      ctx.save();
-      ctx.translate(player.x, player.y);
-      ctx.rotate(player.rot);
-      ctx.shadowBlur = 24;
-      ctx.shadowColor = player.dashFrames > 0 ? COLORS.amber : COLORS.mint;
-      ctx.strokeStyle = player.dashFrames > 0 ? COLORS.amber : COLORS.mint;
-      ctx.lineWidth = 4;
-      ctx.strokeRect(-player.r * 0.75, -player.r * 0.75, player.r * 1.5, player.r * 1.5);
-      ctx.fillStyle = COLORS.amber;
-      ctx.beginPath();
-      ctx.arc(0, 0, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      const activeColor = player.dashFrames > 0 || player.grinding ? COLORS.amber : COLORS.mint;
+      withGlow(activeColor, 22 + beatPulse * 10, () => {
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.rot);
+        ctx.strokeStyle = activeColor;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(-player.r * 0.75, -player.r * 0.75, player.r * 1.5, player.r * 1.5);
+        ctx.fillStyle = COLORS.amber;
+        ctx.beginPath();
+        ctx.arc(0, 0, 5 + beatPulse * 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
     }
 
     // Sparkling Particles
-    particles.forEach((p) => {
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, p.life);
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = p.color;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
+    particles.forEach((p) =>
+      withGlow(p.color, 12, () => {
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      })
+    );
+
+    // Floating Beat/Grind Popups
+    floatingTexts.forEach((ft) =>
+      withGlow(ft.color, 10, () => {
+        ctx.globalAlpha = Math.max(0, ft.life);
+        ctx.font = '800 13px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+      })
+    );
 
     ctx.restore();
   }
 
+  selectTheme(state.themeIdx);
+  generateMissionsSet(0);
   updateHUD();
   showOverlay('START');
+
+  window.__VIBEHOP__ = {
+    THEMES, COLORS, state, player, audio,
+    obstacles, rings, orbs, rails, particles, floatingTexts,
+    get groundY() { return groundY; },
+    selectTheme, setZenMode,
+    getMissions: () => activeMissions,
+    recordMissionProgress, resetGame,
+    triggerPress, triggerRelease, update, draw, updateHUD
+  };
 
   let lastTime = performance.now();
   function loop(now) {
