@@ -691,9 +691,9 @@
 
   const player = {
     x: 0, y: 0, r: 20,
-    vy: 0, gravity: 0.68, jumpForce: -13.4,
+    vy: 0, gravity: 0.68, jumpForce: -13.6,
     scaleX: 1, scaleY: 1,
-    dashFrames: 0, rot: 0, grounded: true, grinding: false
+    dashFrames: 0, glideFrames: 0, rot: 0, grounded: true, grinding: false
   };
 
   const audio = new LoFiAudio(() => state);
@@ -1041,14 +1041,14 @@
     ui.pauseBtn.textContent = '⏸️';
     player.x = Math.min(130, Math.max(68, W * 0.22));
     player.y = groundY - player.r;
-    Object.assign(player, { vy: 0, scaleX: 1, scaleY: 1, dashFrames: 0, grounded: true, grinding: false });
+    Object.assign(player, { vy: 0, scaleX: 1, scaleY: 1, dashFrames: 0, glideFrames: 0, grounded: true, grinding: false });
     [obstacles, rings, orbs, rails, particles, floatingTexts].forEach((arr) => { arr.length = 0; });
     audio.syncMasterChain();
     updateHUD();
     showOverlay('PLAY');
   }
 
-  // --- 7. Unified Input & Physics (Variable Jump Arc, Squash/Stretch, Graze) ---
+  // --- 7. Unified Input & Physics (Zero-Latency Tap Jump + Hold Glide & Auto-Hop) ---
   function triggerPress() {
     audio.init();
     state.holdingInput = true;
@@ -1061,9 +1061,9 @@
     }
 
     for (const ring of rings) {
-      if (!ring.used && Math.hypot(player.x - ring.x, player.y - ring.y) <= ring.r + player.r * 1.55) {
+      if (!ring.used && Math.hypot(player.x - ring.x, player.y - ring.y) <= ring.r + player.r * 1.65) {
         ring.used = true;
-        player.vy = -8.5;
+        player.vy = -8.8;
         player.dashFrames = 16;
         player.scaleX = 1.25;
         player.scaleY = 0.78;
@@ -1080,15 +1080,17 @@
         return;
       }
     }
-    state.jumpBuffer = 6;
+
+    // Zero-Frame Latency: Execute full jump immediately on pointerdown/keydown if grounded or within coyote grace
+    if (player.grounded || player.grinding || state.coyoteFrames > 0) {
+      executeJump();
+    } else {
+      state.jumpBuffer = 7; // 7-frame pre-landing buffer if tapped mid-air
+    }
   }
 
   function triggerRelease() {
     state.holdingInput = false;
-    // VH-12: Variable Jump Height (releasing early cuts upward velocity for a crisp low-hop)
-    if (state.mode === 'PLAY' && player.vy < -5.5 && player.dashFrames <= 0) {
-      player.vy *= 0.58;
-    }
   }
 
   window.addEventListener('keydown', (e) => {
@@ -1118,6 +1120,7 @@
     player.vy = player.jumpForce;
     player.grounded = false;
     player.grinding = false;
+    player.glideFrames = 14;
     // VH-12: Elastic Takeoff Stretch
     player.scaleX = 0.76;
     player.scaleY = 1.26;
@@ -1214,7 +1217,17 @@
 
     const wasGrounded = player.grounded;
     const prevBottom = player.y + player.r;
-    player.vy = player.dashFrames > 0 ? player.vy * Math.pow(0.85, dt) : player.vy + player.gravity * dt;
+    if (player.dashFrames > 0) {
+      player.vy *= Math.pow(0.85, dt);
+    } else {
+      // Quick tap gives full crisp jump (-13.6); holding adds a subtle Alto-style apex float boost
+      let grav = player.gravity;
+      if (state.holdingInput && player.glideFrames > 0 && player.vy < 0) {
+        player.glideFrames = Math.max(0, player.glideFrames - dt);
+        grav *= 0.80;
+      }
+      player.vy += grav * dt;
+    }
     player.y += player.vy * dt;
 
     player.grinding = false;
