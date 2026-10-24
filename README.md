@@ -22,7 +22,7 @@
 
 - 🎵 **Beat-Synced Visuals, Sonar Ring & `+50 PERFECT` Timing (`VH-01`, `VH-10`)** — Horizon lines, neon pillars, jump rings, and a visual sonar ring around your avatar pulse in real time to the quarter-note beat so you can land `⚡ PERFECT VIBE` jumps even on mute.
 - 🎹 **Dynamic Audio Stem Layering & Underwater Pause Muffle (`VH-02`, `VH-15`)** — Real-time Web Audio synthesizer sweeps its low-pass filter from `680Hz` (`1x`) to `2500Hz` (`8x`), layering snares, swing hi-hats, and a `5x+` fever arpeggiator, plus a warm `420Hz` master muffle on overlays/pause.
-- 🔥 **Zero-Latency Tap Jump, Hold Glide & Near-Miss `GRAZE +25` (`VH-12`)** — Instant `0ms` full-height jump on the exact `pointerdown` / `keydown` event so quick rhythm taps effortlessly clear tall spikes and reach elevated rails, while holding adds an *Alto's Odyssey*-style apex float boost and auto-hops on landing. Skimming the outer halo of a spike without losing a shield awards `🔥 GRAZE +25`.
+- 🔥 **Zero-Latency Tap Jump, Hold Glide & Anti-Spam Hazard Variety (`VH-12`)** — Instant `0ms` full-height jump (`149px`) on every fresh tap, plus an *Alto's Odyssey*-style apex glide boost (`177px`) when held mid-air to clear **Double-Spike Clusters**. **Overhead Laser Drone Gates** require staying grounded to duck underneath (defeating AFK finger-holding and blind jump-spam). Skimming the outer halo of any hazard awards `🔥 GRAZE +25`.
 - 🛤️ **Elevated Neon Synth-Rails (`VH-06`)** — Lock onto glowing upper rails after jumps to grind across hazards in a shower of amber sparks.
 - 📼 **3-Goal Tape Deck Missions & Progression Unlocks (`VH-08`, `VH-11`)** — Complete *Alto's Odyssey*-style micro-goals to level up your persistent **Tape Rank (`TAPE LVL`)** and unlock new **Cassette Biomes** and **Avatar Geometries** (*Neon Cube*, *Vinyl Disc*, *Shuriken*, *Cyber Hex*).
 - 📅 **Daily Seeded Run (`VH-13`) & Zen Flow Mode (`VH-05`)** — Compete on today's deterministic global obstacle course (`📅 DAILY SEED`) or toggle **`🧘 ZEN: ON (∞)`** for infinite shields and zero-stress cruising.
@@ -45,7 +45,7 @@
 
 | Device | Action |
 | :--- | :--- |
-| **Mobile (Android / iOS)** | **Tap** = Full Instant Jump (`149px`) • **Hold** = Apex Glide + Auto-Hop • **Tap in Ring** = Dash • Top-Right `🔊`/`⏸️` |
+| **Mobile (Android / iOS)** | **Tap** = Full Instant Jump (`149px`) • **Hold in Air** = Apex Glide (`177px`) • **Stay Grounded** = Duck Under Drone Gates • **Tap in Ring** = Dash |
 | **Desktop** | **`Spacebar`** / **`↑ Up`** / **Click** = Jump or Dash • **`P` / `Esc`** = Pause • **`M`** = Mute |
 
 ---

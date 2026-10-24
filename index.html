@@ -291,8 +291,8 @@
 
       <div class="ov-hints">
         <span class="ov-hint-pill">🎵 Beat Ring = +50 PERFECT</span>
+        <span class="ov-hint-pill">⚠️ Duck Under Low Drone Gates</span>
         <span class="ov-hint-pill">🔥 Skim Spikes = +25 GRAZE</span>
-        <span class="ov-hint-pill">🛤️ Grind Rails & Dash Rings</span>
       </div>
     </div>
 
@@ -1140,25 +1140,63 @@
 
   function spawnEntities() {
     if (state.distance < state.nextSpawnDist) return;
-    const gap = 300 + rng() * 190;
+    const difficulty = Math.min(1, state.distance / 12000);
+    const gap = Math.max(230, 315 - difficulty * 75) + rng() * 155;
     state.nextSpawnDist = state.distance + gap;
 
-    const roll = rng();
+    const patternRoll = rng();
     const spawnX = W + 80;
+
+    // Pattern 1 (Anti-Auto-Hop): Overhead Low-Clearance Laser Drone Gate (Stay Grounded to pass underneath!)
+    if (state.distance > 420 && patternRoll < 0.28) {
+      const gateW = 54 + rng() * 24;
+      const gateH = 56;
+      // Bottom of gate sits at groundY - 52 (grounded player top is groundY - 40 -> safe! Jumping hits it!)
+      obstacles.push({
+        x: spawnX,
+        y: groundY - 52 - gateH,
+        w: gateW,
+        h: gateH,
+        kind: 'drone',
+        shattered: false,
+        grazed: false
+      });
+      // Place a prism orb right along the ground underneath the gate to reward staying low
+      orbs.push({ x: spawnX + gateW * 0.5, y: groundY - 22, r: 14, collected: false, angle: 0 });
+      return;
+    }
+
+    // Pattern 2: Double Spike Cluster (ramps up with distance, requires late jump or Hold-Glide)
+    if (state.distance > 1100 && patternRoll < 0.50) {
+      const h1 = 36 + rng() * 18;
+      const h2 = 38 + rng() * 20;
+      obstacles.push({ x: spawnX, y: groundY - h1, w: 32, h: h1, kind: 'spike', shattered: false, grazed: false });
+      obstacles.push({ x: spawnX + 36, y: groundY - h2, w: 32, h: h2, kind: 'spike', shattered: false, grazed: false });
+      if (rng() > 0.35) {
+        orbs.push({ x: spawnX + 18, y: groundY - 125, r: 14, collected: false, angle: 0 });
+      }
+      return;
+    }
+
+    // Pattern 3: Classic Single Spike + Elevated Grind Rail or Jump Ring
     const h = 38 + rng() * 26;
     const w = 34 + rng() * 14;
-    obstacles.push({ x: spawnX, y: groundY - h, w, h, shattered: false, grazed: false });
+    obstacles.push({ x: spawnX, y: groundY - h, w, h, kind: 'spike', shattered: false, grazed: false });
 
-    if (roll > 0.45) {
+    const subRoll = rng();
+    if (subRoll > 0.45) {
       const railW = 150 + rng() * 110;
       const railY = groundY - 88 - rng() * 28;
       rails.push({ x: spawnX + 65, y: railY, w: railW, grinded: false });
-      orbs.push({ x: spawnX + 65 + railW * 0.5, y: railY - 26, r: 14, collected: false, angle: 0 });
-    } else if (roll > 0.2) {
+      if (rng() > 0.45) {
+        orbs.push({ x: spawnX + 65 + railW * 0.5, y: railY - 26, r: 14, collected: false, angle: 0 });
+      }
+    } else if (subRoll > 0.18) {
       rings.push({ x: spawnX + (rng() > 0.5 ? 0 : gap * 0.48), y: groundY - 120 - rng() * 45, r: 28, used: false, pulse: 0 });
     }
 
-    if (rng() > 0.35) {
+    // Balanced Prism Orb Scarcity (~22% chance on standard gaps so shields matter)
+    if (rng() > 0.78) {
       orbs.push({ x: spawnX + gap * 0.5, y: groundY - 55 - rng() * 90, r: 14, collected: false, angle: 0 });
     }
   }
@@ -1205,7 +1243,7 @@
 
     if (player.grounded || player.grinding) {
       state.coyoteFrames = 6;
-      if (state.holdingInput) state.jumpBuffer = 6;
+      // Hold-to-glide stays active in air, but jumping requires a fresh tap/press (prevents AFK finger-holding)
     } else if (state.coyoteFrames > 0) {
       state.coyoteFrames = Math.max(0, state.coyoteFrames - dt);
     }
@@ -1531,17 +1569,33 @@
       })
     );
 
-    // Obstacles
+    // Obstacles (Ground Spikes & Overhead Laser Drone Gates)
     obstacles.forEach((ob) => {
       if (ob.shattered) return;
       withGlow(COLORS.magenta, 20, () => {
         ctx.fillStyle = COLORS.magenta;
-        ctx.beginPath();
-        ctx.moveTo(ob.x, ob.y + ob.h);
-        ctx.lineTo(ob.x + ob.w / 2, ob.y);
-        ctx.lineTo(ob.x + ob.w, ob.y + ob.h);
-        ctx.closePath();
-        ctx.fill();
+        ctx.strokeStyle = COLORS.amber;
+        ctx.lineWidth = 2;
+        if (ob.kind === 'drone') {
+          // Overhead Laser Drone Gate with downward warning chevrons
+          ctx.fillRect(ob.x, ob.y, ob.w, ob.h - 12);
+          ctx.beginPath();
+          ctx.moveTo(ob.x, ob.y + ob.h - 12);
+          ctx.lineTo(ob.x + ob.w * 0.25, ob.y + ob.h);
+          ctx.lineTo(ob.x + ob.w * 0.5, ob.y + ob.h - 12);
+          ctx.lineTo(ob.x + ob.w * 0.75, ob.y + ob.h);
+          ctx.lineTo(ob.x + ob.w, ob.y + ob.h - 12);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeRect(ob.x + 4, ob.y + 4, ob.w - 8, ob.h - 20);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(ob.x, ob.y + ob.h);
+          ctx.lineTo(ob.x + ob.w / 2, ob.y);
+          ctx.lineTo(ob.x + ob.w, ob.y + ob.h);
+          ctx.closePath();
+          ctx.fill();
+        }
       });
     });
 
