@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vibehop-pwa-v6';
+const CACHE_NAME = 'vibehop-pwa-v7';
 const ASSETS = [
   './',
   './index.html',
