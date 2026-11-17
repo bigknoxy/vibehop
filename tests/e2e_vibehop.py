@@ -225,6 +225,127 @@ def run_tests():
             assert reg_res["diedHolding"] and reg_res["safeGrounded"] and reg_res["hitJumping"]
             print(f"  ✅ [Anti-AFK & Pacing] AFK hold defeated in {reg_res['frames']} frames; Drone Gate verified")
 
+            # 9. VH-18: Best score persisted once on pause — never per frame during PLAY
+            storage_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                localStorage.setItem('vibehop_best', '1');
+                api.setZenMode(true);  // zen: run can never end mid-loop, so every frame below is PLAY
+                api.setDailyMode(true);
+                api.resetGame();
+                api.state.score = 9000;  // > best: the old code persisted vibehop_best on every updateHUD()
+                let bestWrites = 0;
+                const realSetItem = localStorage.setItem.bind(localStorage);
+                localStorage.setItem = (key, val) => { if (key === 'vibehop_best') bestWrites++; return realSetItem(key, val); };
+                for (let i = 0; i < 150 && api.state.mode === 'PLAY'; i++) api.update(1.0);
+                const writesDuringPlay = bestWrites;
+                bestWrites = 0;
+                api.togglePause();  // entering PAUSED is the persistence point
+                const writesOnPause = bestWrites;
+                api.togglePause();  // resume → PLAY
+                bestWrites = 0;
+                api.setZenMode(false);
+                api.resetGame();
+                api.state.score = 12000;  // beat the paused best
+                api.state.pips = 1;       // next obstacle hit ends the run
+                for (let i = 0; i < 600 && api.state.mode === 'PLAY'; i++) api.update(1.0);
+                const writesOnGameOver = bestWrites;
+                const modeAfterDie = api.state.mode;
+                localStorage.setItem = realSetItem;
+                api.setDailyMode(false);
+                return { writesDuringPlay, writesOnPause, writesOnGameOver, modeAfterDie };
+            }""")
+            assert storage_res["writesDuringPlay"] == 0, \
+                f"VH-18 FALSIFIER: best persisted {storage_res['writesDuringPlay']}x during PLAY frames"
+            assert storage_res["writesOnPause"] == 1, "VH-18: best must persist exactly once when the run pauses"
+            assert storage_res["writesOnGameOver"] == 1 and storage_res["modeAfterDie"] == "OVER", \
+                f"VH-18: best must persist exactly once at game over: {storage_res}"
+            print("  ✅ [VH-18] No per-frame best-score storage writes; persisted once on pause and on game over")
+
+            # 10. VH-18: HUD dirty-check still reflects every displayed value change
+            hud_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                api.setDailyMode(false);
+                api.resetGame();
+                api.state.mult = 4;
+                api.updateHUD();
+                const multText = document.getElementById('mult-el').textContent;
+                api.state.pips = 1;
+                api.state.zenMode = false;
+                api.updateHUD();
+                const activePips = [...document.querySelectorAll('.pip')].filter((el) => el.classList.contains('active')).length;
+                api.state.score = 321;
+                api.updateHUD();
+                const scoreText = document.getElementById('score-el').textContent;
+                const bestText = document.getElementById('best-el').textContent;
+                return { multText, activePips, scoreText, bestText };
+            }""")
+            assert "4x" in hud_res["multText"], f"VH-18: mult HUD stale: {hud_res['multText']}"
+            assert hud_res["activePips"] == 1, f"VH-18: pips HUD stale: {hud_res['activePips']}"
+            assert hud_res["scoreText"] == "0321", f"VH-18: score HUD stale: {hud_res['scoreText']}"
+            assert "BEST" in hud_res["bestText"]
+            print("  ✅ [VH-18] Dirty-checked HUD still paints every changed value")
+
+            # 11. VH-18: Dust motes drift dt-scaled in update(), freeze on PAUSED, never mutate in draw()
+            dust_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                api.setDailyMode(true);
+                api.resetGame();  // PLAY
+                const x0 = api.dustMotes[0].x;
+                api.update(1.0);
+                const x1 = api.dustMotes[0].x;
+                const movedWithDt = x1 !== x0;
+                api.togglePause();  // PAUSED
+                const p0 = api.dustMotes[0].x;
+                api.update(1.0);    // must early-return on PAUSED
+                api.draw();         // must never mutate motes
+                const p1 = api.dustMotes[0].x;
+                const frozenWhilePaused = p1 === p0;
+                api.togglePause();  // back to PLAY
+                api.update(1.0);
+                const movedAgain = api.dustMotes[0].x !== p1;
+                const d = api.dustMotes[0].x;
+                api.draw();
+                const drawMutates = api.dustMotes[0].x !== d;
+                return { movedWithDt, frozenWhilePaused, movedAgain, drawMutates };
+            }""")
+            assert dust_res["movedWithDt"] and dust_res["movedAgain"], \
+                f"VH-18: dust must drift dt-scaled during PLAY: {dust_res}"
+            assert dust_res["frozenWhilePaused"], "VH-18: dust must freeze while PAUSED"
+            assert not dust_res["drawMutates"], "VH-18: draw() must never mutate dust motes"
+            print("  ✅ [VH-18] Dust motes: dt-scaled drift, frozen on pause, draw() side-effect free")
+
+            # 12. VH-18: Multi-touch — only the tracked active pointer may clear state.holdingInput
+            touch_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                api.setZenMode(true);
+                api.setDailyMode(false);
+                api.resetGame();  // PLAY, grounded
+                const gameCanvas = document.getElementById('game');
+                gameCanvas.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 11, bubbles: true, cancelable: true }));
+                const heldAfterDown = api.state.holdingInput;
+                window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 22, bubbles: true }));
+                const heldAfterForeignUp = api.state.holdingInput;
+                const vyAtForeignUp = api.player.vy;
+                gameCanvas.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 33, bubbles: true, cancelable: true }));
+                window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 44, bubbles: true }));
+                const heldAfterForeignCancel = api.state.holdingInput;
+                window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 11, bubbles: true }));
+                const heldAfterActiveUp = api.state.holdingInput;
+                gameCanvas.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 55, bubbles: true, cancelable: true }));
+                const heldAfterRepress = api.state.holdingInput;
+                window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 55, bubbles: true }));
+                const releasedByActiveCancel = !api.state.holdingInput;
+                return { heldAfterDown, heldAfterForeignUp, vyAtForeignUp, heldAfterForeignCancel, heldAfterActiveUp, heldAfterRepress, releasedByActiveCancel };
+            }""")
+            assert touch_res["heldAfterDown"], "VH-18: pointer press must set holdingInput"
+            assert touch_res["vyAtForeignUp"] < 0, "VH-18: foreign pointerup must arrive mid-glide (airborne vy)"
+            assert touch_res["heldAfterForeignUp"], "VH-18 FALSIFIER: foreign pointerup dropped holdingInput mid-glide"
+            assert touch_res["heldAfterForeignCancel"], "VH-18: foreign pointercancel dropped holdingInput"
+            assert not touch_res["heldAfterActiveUp"], "VH-18: the active pointer's own pointerup must release the hold"
+            assert touch_res["heldAfterRepress"] and touch_res["releasedByActiveCancel"], \
+                "VH-18: the active pointer's own pointercancel must release the hold"
+            print("  ✅ [VH-18] Multi-touch: foreign pointerup/cancel no longer drop the hold; active cancel releases")
+
             assert len(errors) == 0, f"Runtime console errors detected: {errors}"
             browser.close()
             print("🎉 ALL DETERMINISTIC E2E & FALSIFIER CHECKS PASSED!")
