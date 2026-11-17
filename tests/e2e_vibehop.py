@@ -37,7 +37,7 @@ def run_tests():
             browser = p.chromium.launch(
                 executable_path="/usr/bin/google-chrome",
                 headless=True,
-                args=["--no-sandbox", "--disable-setuid-sandbox", "--autoplay-policy=no-user-gesture-required"],
+                args=["--headless=new", "--disable-gpu", "--no-sandbox", "--disable-setuid-sandbox", "--autoplay-policy=no-user-gesture-required"],
             )
             context = browser.new_context(
                 viewport={"width": 375, "height": 667},
