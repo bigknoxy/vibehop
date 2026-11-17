@@ -453,7 +453,7 @@
     }
 
     getMasterGainValue() {
-      return this. getState().muted ? 0 : 0.9;
+      return this.getState().muted ? 0 : 0.9;
     }
 
     syncMasterChain() {
@@ -664,6 +664,16 @@
   };
 
   let bestScore = Storage.getInt('vibehop_best', 0);
+  // VH-18: best score is persisted only on pause/game-over (plus pagehide backstop) — never per frame
+  let bestPersisted = bestScore;
+
+  function persistBest() {
+    if (bestScore === bestPersisted) return;
+    bestPersisted = bestScore;
+    Storage.set('vibehop_best', bestPersisted);
+  }
+
+  window.addEventListener('pagehide', persistBest);
 
   const state = {
     mode: 'START', // START, PLAY, PAUSED, OVER
@@ -865,6 +875,7 @@
     if (state.mode === 'PLAY') {
       state.mode = 'PAUSED';
       state.holdingInput = false;
+      persistBest();
       ui.pauseBtn.textContent = '▶️';
       audio.syncMasterChain();
       showOverlay('PAUSED');
@@ -994,16 +1005,31 @@
   window.addEventListener('resize', resize);
   resize();
 
+  // VH-18: dirty-checked HUD — DOM nodes are only touched when a displayed value changed
+  const hudCache = { score: -1, best: -1, mult: -1, pips: -1, zen: null };
+
   function updateHUD() {
     const s = Math.floor(state.score);
-    if (s > bestScore) {
-      bestScore = s;
-      Storage.set('vibehop_best', bestScore);
+    if (s > bestScore) bestScore = s;
+
+    if (hudCache.score !== s) {
+      hudCache.score = s;
+      ui.score.textContent = String(s).padStart(4, '0');
     }
-    ui.score.textContent = String(s).padStart(4, '0');
-    ui.best.textContent = `BEST ${String(bestScore).padStart(4, '0')}`;
-    ui.mult.textContent = state.zenMode ? `∞ ZEN • ${state.mult}x` : `${state.mult}x VIBE`;
-    ui.pips.forEach((el, idx) => el.classList.toggle('active', state.zenMode || idx < state.pips));
+    if (hudCache.best !== bestScore) {
+      hudCache.best = bestScore;
+      ui.best.textContent = `BEST ${String(bestScore).padStart(4, '0')}`;
+    }
+    if (hudCache.mult !== state.mult || hudCache.zen !== state.zenMode) {
+      hudCache.mult = state.mult;
+      hudCache.zen = state.zenMode;
+      ui.mult.textContent = state.zenMode ? `∞ ZEN • ${state.mult}x` : `${state.mult}x VIBE`;
+    }
+    const pipsShown = state.zenMode ? ui.pips.length : state.pips;
+    if (hudCache.pips !== pipsShown) {
+      hudCache.pips = pipsShown;
+      ui.pips.forEach((el, idx) => el.classList.toggle('active', state.zenMode || idx < state.pips));
+    }
   }
 
   function showOverlay(mode) {
@@ -1106,14 +1132,32 @@
   window.addEventListener('keyup', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') triggerRelease();
   });
-  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); triggerPress(); });
+
+  // VH-18: track the pointer that owns the hold — a second finger/palm lifting (different pointerId)
+  // must not drop state.holdingInput mid-glide
+  let activePointerId = null;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (activePointerId === null) activePointerId = e.pointerId;
+    triggerPress();
+  });
   ui.card.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
     e.preventDefault();
+    if (activePointerId === null) activePointerId = e.pointerId;
     triggerPress();
   });
-  window.addEventListener('pointerup', triggerRelease);
-  window.addEventListener('pointercancel', triggerRelease);
+  window.addEventListener('pointerup', (e) => {
+    if (e.pointerId !== activePointerId) return;
+    activePointerId = null;
+    triggerRelease();
+  });
+  window.addEventListener('pointercancel', (e) => {
+    if (e.pointerId !== activePointerId) return;
+    activePointerId = null;
+    triggerRelease();
+  });
 
   function executeJump() {
     const onBeat = audio.isOnBeat();
@@ -1219,6 +1263,11 @@
 
   function update(dt) {
     if (state.mode === 'PAUSED') return;
+    // VH-18: ambient dust drifts here, dt-scaled, instead of mutating inside draw() — so it freezes on pause
+    for (const m of dustMotes) {
+      m.x -= m.s * dt;
+      if (m.x < 0) m.x += W;
+    }
     if (state.mode === 'OVER') {
       if (state.overLockoutFrames > 0) state.overLockoutFrames -= dt;
       if (state.shakeFrames > 0) state.shakeFrames = Math.max(0, state.shakeFrames - dt);
@@ -1353,6 +1402,7 @@
               state.mode = 'OVER';
               state.overLockoutFrames = 24;
               state.holdingInput = false;
+              persistBest();
               audio.syncMasterChain();
               showOverlay('OVER');
             }
@@ -1506,11 +1556,9 @@
       }
     });
 
-    // Layer 3: Ambient Floating Dust Motes
+    // Layer 3: Ambient Floating Dust Motes (drifted in update(dt); draw never mutates them — VH-18)
     ctx.fillStyle = COLORS.amber;
     dustMotes.forEach((m) => {
-      m.x -= m.s;
-      if (m.x < 0) m.x += W;
       ctx.globalAlpha = m.a;
       ctx.beginPath();
       ctx.arc(m.x % W, m.y % groundY, m.r, 0, Math.PI * 2);
@@ -1622,27 +1670,33 @@
       });
     }
 
-    // Sparkling Particles
-    particles.forEach((p) =>
-      withGlow(p.color, 12, () => {
+    // VH-18: spark particles batched by color with no per-particle shadowBlur (mobile fill-rate)
+    const particleBuckets = new Map();
+    for (const p of particles) {
+      const bucket = particleBuckets.get(p.color);
+      if (bucket) bucket.push(p);
+      else particleBuckets.set(p.color, [p]);
+    }
+    for (const [color, bucket] of particleBuckets) {
+      ctx.fillStyle = color;
+      for (const p of bucket) {
         ctx.globalAlpha = Math.max(0, p.life);
-        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
-      })
-    );
+      }
+    }
+    ctx.globalAlpha = 1;
 
-    // Floating Beat/Graze/Grind Popups
-    floatingTexts.forEach((ft) =>
-      withGlow(ft.color, 10, () => {
-        ctx.globalAlpha = Math.max(0, ft.life);
-        ctx.font = '800 13px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = ft.color;
-        ctx.fillText(ft.text, ft.x, ft.y);
-      })
-    );
+    // Floating Beat/Graze/Grind Popups — shared font/align setup, no per-text shadowBlur
+    ctx.font = '800 13px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    for (const ft of floatingTexts) {
+      ctx.globalAlpha = Math.max(0, ft.life);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1;
 
     ctx.restore();
   }
@@ -1659,7 +1713,7 @@
 
   window.__VIBEHOP__ = {
     THEMES, AVATARS, COLORS, state, player, audio,
-    obstacles, rings, orbs, rails, particles, floatingTexts,
+    obstacles, rings, orbs, rails, particles, floatingTexts, dustMotes,
     get groundY() { return groundY; },
     setVibeRank, selectTheme, selectAvatar,
     setZenMode, setDailyMode, setMuted, togglePause,
