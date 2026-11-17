@@ -255,42 +255,76 @@ def run_tests():
             assert reg_res["diedHolding"] and reg_res["safeGrounded"] and reg_res["hitJumping"]
             print(f"  ✅ [Anti-AFK & Pacing] AFK hold defeated in {reg_res['frames']} frames; Drone Gate verified")
 
-            # 9. VH-18: Best score persisted once on pause — never per frame during PLAY
+            # 9. VH-18/VH-19: best persisted once per run exit — and never across the daily/endless split
             storage_res = page.evaluate("""() => {
                 const api = window.__VIBEHOP__;
                 localStorage.setItem('vibehop_best', '1');
+                localStorage.removeItem(`vibehop_daily_best_${api.utcDateInt()}`);
                 api.setZenMode(true);  // zen: run can never end mid-loop, so every frame below is PLAY
                 api.setDailyMode(true);
                 api.resetGame();
-                api.state.score = 9000;  // > best: the old code persisted vibehop_best on every updateHUD()
-                let bestWrites = 0;
+                api.state.score = 9000;  // the old code persisted vibehop_best on every updateHUD()
+                let bestWrites = 0, dailyWrites = 0;
+                const dailyKey = `vibehop_daily_best_${api.utcDateInt()}`;
                 const realSetItem = localStorage.setItem.bind(localStorage);
-                localStorage.setItem = (key, val) => { if (key === 'vibehop_best') bestWrites++; return realSetItem(key, val); };
+                localStorage.setItem = (key, val) => {
+                    if (key === 'vibehop_best') bestWrites++;
+                    if (key === dailyKey) dailyWrites++;
+                    return realSetItem(key, val);
+                };
                 for (let i = 0; i < 150 && api.state.mode === 'PLAY'; i++) api.update(1.0);
-                const writesDuringPlay = bestWrites;
-                bestWrites = 0;
+                const writesDuringPlay = { best: bestWrites, daily: dailyWrites };
+                bestWrites = 0; dailyWrites = 0;
                 api.togglePause();  // entering PAUSED is the persistence point
-                const writesOnPause = bestWrites;
+                const writesOnPause = { best: bestWrites, daily: dailyWrites };
+                const pausedDailyVal = localStorage.getItem(dailyKey);
+                localStorage.setItem = realSetItem;
                 api.togglePause();  // resume → PLAY
-                bestWrites = 0;
+
+                // phase 2: endless run — an endless game-over must persist only the endless best
+                api.setDailyMode(false);
                 api.setZenMode(false);
                 api.resetGame();
-                api.state.score = 12000;  // beat the paused best
-                api.state.pips = 1;       // next obstacle hit ends the run
-                for (let i = 0; i < 600 && api.state.mode === 'PLAY'; i++) api.update(1.0);
-                const writesOnGameOver = bestWrites;
-                const modeAfterDie = api.state.mode;
+                api.state.score = 12000;
+                api.state.pips = 1;
+                const gate = { x: api.player.x - 10, y: api.groundY - 108, w: 60, h: 56, kind: 'drone', shattered: false, grazed: false };
+                api.obstacles.push(gate);
+                api.player.y = api.groundY - 75;  // airborne gate pass → pip loss → OVER
+                api.player.vy = 0;
+                bestWrites = 0; dailyWrites = 0;
+                localStorage.setItem = (key, val) => {
+                    if (key === 'vibehop_best') bestWrites++;
+                    if (key === dailyKey) dailyWrites++;
+                    return realSetItem(key, val);
+                };
+                for (let i = 0; i < 30; i++) {
+                    api.update(1.0);
+                    if (api.state.mode === 'OVER') break;
+                }
                 localStorage.setItem = realSetItem;
-                api.setDailyMode(false);
-                return { writesDuringPlay, writesOnPause, writesOnGameOver, modeAfterDie };
+                return {
+                    writesDuringPlay, writesOnPause, pausedDailyVal,
+                    dailyBestInMemory: api.dailyBest,  // live in-memory daily best read back through the getter
+                    writesOnGameOver: { best: bestWrites, daily: dailyWrites },
+                    modeAfterDie: api.state.mode,
+                    endlessVal: localStorage.getItem('vibehop_best'),
+                    dailyValAfterEndless: localStorage.getItem(dailyKey)
+                };
             }""")
-            assert storage_res["writesDuringPlay"] == 0, \
+            assert storage_res["writesDuringPlay"]["best"] == 0 and storage_res["writesDuringPlay"]["daily"] == 0, \
                 f"VH-18 FALSIFIER: best persisted {storage_res['writesDuringPlay']}x during PLAY frames"
-            assert storage_res["writesOnPause"] == 1, "VH-18: best must persist exactly once when the run pauses"
-            assert storage_res["writesOnGameOver"] == 1 and storage_res["modeAfterDie"] == "OVER", \
-                f"VH-18: best must persist exactly once at game over: {storage_res}"
-            print("  ✅ [VH-18] No per-frame best-score storage writes; persisted once on pause and on game over")
-
+            assert storage_res["writesOnPause"]["best"] == 0, \
+                f"VH-19 FALSIFIER: a daily-mode run persisted the endless best on pause: {storage_res}"
+            assert storage_res["writesOnPause"]["daily"] == 1 \
+                and storage_res["pausedDailyVal"] == str(storage_res["dailyBestInMemory"]) \
+                and int(storage_res["pausedDailyVal"]) >= 9000, \
+                f"VH-18/VH-19: daily best must persist exactly once on pause into today's key: {storage_res}"
+            assert storage_res["writesOnGameOver"]["best"] == 1 and storage_res["modeAfterDie"] == "OVER", \
+                f"VH-18: endless best must persist exactly once at game over: {storage_res}"
+            assert storage_res["endlessVal"] == "12000" and storage_res["dailyValAfterEndless"] == storage_res["pausedDailyVal"] \
+                and storage_res["writesOnGameOver"]["daily"] == 0, \
+                f"VH-19 FALSIFIER: endless game-over must touch only vibehop_best, never the daily key: {storage_res}"
+            print("  ✅ [VH-18/VH-19] Best persistence: once per run exit; daily & endless records fully isolated")
             # 10. VH-18: HUD dirty-check still reflects every displayed value change
             hud_res = page.evaluate("""() => {
                 const api = window.__VIBEHOP__;
@@ -435,6 +469,152 @@ def run_tests():
                 f"VH-24 FALSIFIER: served og-card.png decodes as {png_res}, want 1200x630"
             print("  ✅ [VH-24] Served og-card.png decodes in-browser at 1200x630")
 
+            # 16. VH-19: Daily best fully isolated — endless vibehop_best (9999) is never overwritten by daily runs
+            daily_isolation_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                api.setDailyMode(false);
+                api.setZenMode(false);
+                localStorage.setItem('vibehop_best', '9999');
+                localStorage.removeItem(`vibehop_daily_best_${api.utcDateInt()}`);
+                api.setDailyMode(true);
+                api.resetGame();
+                api.state.score = 5000;
+                api.updateHUD();
+                const hudBest = document.getElementById('best-el').textContent;  // must read DAILY BEST
+                api.state.pips = 1;
+                const gate = { x: api.player.x - 10, y: api.groundY - 108, w: 60, h: 56, kind: 'drone', shattered: false, grazed: false };
+                api.obstacles.push(gate);
+                api.player.y = api.groundY - 75;  // airborne gate pass (VH-9 falsifier pattern) → pip loss → OVER
+                api.player.vy = 0;
+                for (let i = 0; i < 30 && api.state.mode === 'PLAY'; i++) api.update(1.0);
+                const res = {
+                    mode: api.state.mode,
+                    hudBest,
+                    badge: document.getElementById('ov-badge').textContent,
+                    endlessBest: localStorage.getItem('vibehop_best'),
+                    dailyBest: localStorage.getItem(`vibehop_daily_best_${api.utcDateInt()}`)
+                };
+                api.setDailyMode(false);
+                return res;
+            }""")
+            assert daily_isolation_res["mode"] == "OVER", f"VH-19: daily run should reach game over: {daily_isolation_res}"
+            assert daily_isolation_res["endlessBest"] == "9999", \
+                f"VH-19 FALSIFIER: daily-mode run overwrote the endless best: {daily_isolation_res}"
+            assert daily_isolation_res["dailyBest"] == "5000", \
+                f"VH-19: a daily run must persist into today's per-UTC-date key: {daily_isolation_res}"
+            assert daily_isolation_res["badge"] == "★ NEW HIGH VIBE ★", \
+                f"VH-19: daily runs must medal independently against today's daily best: {daily_isolation_res}"
+            assert daily_isolation_res["hudBest"].startswith("DAILY BEST"), \
+                f"VH-19: HUD must label the daily record while dailyMode is on: {daily_isolation_res}"
+            print("  ✅ [VH-19] Daily best isolated: endless 9999 intact; DAILY BEST HUD + independent medal")
+
+            # 17. VH-22: streak — consecutive UTC days chain, same-day replays hold, gaps restart
+            streak_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                api.setDailyMode(false);
+                const today = api.utcDateInt();
+                const dMinus1 = api.utcDateInt(-1);
+                localStorage.removeItem('vibehop_seen_tips');
+                localStorage.setItem('vibehop_streak', '4');
+                localStorage.setItem('vibehop_last_play_date', String(dMinus1));
+                api.state.streak = 4;               // runtime state mirrors storage in the real client
+                api.state.lastPlayDate = dMinus1;
+                api.resetGame();                    // today's run: the day before chains 4 → 5
+                const chained = api.state.streak;
+                const persistedStreak = localStorage.getItem('vibehop_streak');
+                const persistedDate = localStorage.getItem('vibehop_last_play_date');
+                api.resetGame();                    // replaying the same day must not double-bump
+                const sameDay = api.state.streak;
+                const dMinus2 = api.utcDateInt(-2);
+                localStorage.setItem('vibehop_streak', '7');
+                localStorage.setItem('vibehop_last_play_date', String(dMinus2));
+                api.state.streak = 7;
+                api.state.lastPlayDate = dMinus2;
+                api.resetGame();                    // 2-day gap: the chain restarts at 1
+                const restarted = api.state.streak;
+                api.showOverlay('START');
+                const pill = document.getElementById('streak-el');
+                const pillText = pill.textContent;
+                const pillShown = pill.style.display === 'inline-block';
+                api.state.streak = 0;
+                api.showOverlay('START');
+                const pillHidden = pill.style.display === 'none';
+                return { chained, persistedStreak, persistedDate, sameDay, restarted, pillText, pillShown, pillHidden, today: String(today) };
+            }""")
+            assert streak_res["chained"] == 5 and streak_res["persistedStreak"] == "5", \
+                f"VH-22 FALSIFIER: running the day after must chain streak 4 → 5: {streak_res}"
+            assert streak_res["persistedDate"] == streak_res["today"], \
+                f"VH-22: last play date must advance to today's UTC YYYYMMDD: {streak_res}"
+            assert streak_res["sameDay"] == 5, f"VH-22: same-day runs must not double the streak: {streak_res}"
+            assert streak_res["restarted"] == 1, f"VH-22: a skipped UTC day must restart the streak at 1: {streak_res}"
+            assert streak_res["pillText"] == "🔥 1-DAY FLOW" and streak_res["pillShown"], \
+                f"VH-22: Start/Share UI must show the N-day flow pill: {streak_res}"
+            assert streak_res["pillHidden"], f"VH-22: pill must hide when the streak sits at 0: {streak_res}"
+            print("  ✅ [VH-22] Streak: chains consecutive UTC days, holds same-day, restarts on gap; pill paints")
+
+            # 18. VH-19: first-encounter diegetic callouts — teach-once, persisted to vibehop_seen_tips
+            tips_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                api.setDailyMode(false);
+                api.resetGame();
+                api.seenTips.clear();
+                localStorage.removeItem('vibehop_seen_tips');
+                api.floatingTexts.length = 0;
+                const gate = { x: api.player.x - 10, y: api.groundY - 108, w: 60, h: 56, kind: 'drone', shattered: false, grazed: false };
+                api.obstacles.push(gate);
+                api.update(1.0);  // grounded pass through the gate: the first encounter
+                const droneSpawned = api.floatingTexts.some((t) => t.text === 'STAY LOW!');
+                const droneRecorded = localStorage.getItem('vibehop_seen_tips') === 'drone';
+                const gatePassed = !gate.shattered && api.state.pips === 3;
+                api.floatingTexts.length = 0;
+                api.update(1.0);  // gate still on screen: the callout must stay once-only
+                const droneRepeated = api.floatingTexts.some((t) => t.text === 'STAY LOW!');
+
+                api.rings.length = 0;
+                api.floatingTexts.length = 0;
+                api.rings.push({ x: api.player.x, y: api.groundY - 120, r: 24, pulse: 0 });
+                api.update(1.0);
+                const ringSpawned = api.floatingTexts.some((t) => t.text === 'TAP IN RING!');
+
+                api.rails.length = 0;
+                api.floatingTexts.length = 0;
+                api.rails.push({ x: api.player.x - 60, y: api.groundY - 96, w: 220, h: 6, grinded: false });
+                api.update(1.0);
+                const railSpawned = api.floatingTexts.some((t) => t.text === 'LAND ON RAIL!');
+                const tipKeys = (localStorage.getItem('vibehop_seen_tips') || '').split(',');
+                const allRecorded = ['drone', 'ring', 'rail'].every((k) => tipKeys.includes(k));
+                return { droneSpawned, droneRecorded, gatePassed, droneRepeated, ringSpawned, railSpawned, allRecorded };
+            }""")
+            assert tips_res["droneSpawned"] and tips_res["droneRecorded"] and tips_res["gatePassed"], \
+                f"VH-19: the first drone-gate encounter must spawn STAY LOW! and record it: {tips_res}"
+            assert not tips_res["droneRepeated"], f"VH-19 FALSIFIER: callout repeated within the same session: {tips_res}"
+            assert tips_res["ringSpawned"] and tips_res["railSpawned"] and tips_res["allRecorded"], \
+                f"VH-19: ring/rail first encounters must call out and record too: {tips_res}"
+            print("  ✅ [VH-19] First-encounter callouts: STAY LOW!/TAP IN RING!/LAND ON RAIL! teach once and persist")
+
+            # 18b. VH-19: cross-session persistence — a new session must not re-teach the callouts
+            page.evaluate("navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister())))")
+            page.reload(wait_until="networkidle")
+            assert len(errors) == 0, f"Page reload console errors: {errors}"
+            fresh_tips_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                const loadedFromStorage = api.seenTips.has('drone');
+                api.resetGame();
+                api.floatingTexts.length = 0;
+                const gate = { x: api.player.x - 10, y: api.groundY - 108, w: 60, h: 56, kind: 'drone', shattered: false, grazed: false };
+                api.obstacles.push(gate);
+                api.update(1.0);
+                return {
+                    loadedFromStorage,
+                    reSpawned: api.floatingTexts.some((t) => t.text === 'STAY LOW!'),
+                    gatePassed: !gate.shattered
+                };
+            }""")
+            assert fresh_tips_res["loadedFromStorage"], \
+                "VH-19 FALSIFIER: vibehop_seen_tips must be read back into seenTips at session start"
+            assert not fresh_tips_res["reSpawned"] and fresh_tips_res["gatePassed"], \
+                f"VH-19 FALSIFIER: callouts must never repeat across sessions: {fresh_tips_res}"
+            print("  ✅ [VH-19] Callout teach-once survives a page reload via vibehop_seen_tips")
             assert len(errors) == 0, f"Runtime console errors detected: {errors}"
             browser.close()
             print("🎉 ALL DETERMINISTIC E2E & FALSIFIER CHECKS PASSED!")

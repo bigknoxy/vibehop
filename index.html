@@ -124,6 +124,13 @@
       border: 1px solid rgba(255, 83, 118, 0.45);
       padding: 2px 8px; border-radius: 999px; margin-bottom: 4px;
     }
+    .ov-streak {
+      display: inline-block;
+      font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
+      color: var(--amber); background: rgba(255, 209, 102, 0.14);
+      border: 1px solid rgba(255, 209, 102, 0.45);
+      padding: 2px 8px; border-radius: 999px; margin-bottom: 4px;
+    }
     .ov-title {
       font-size: clamp(20px, 5.8vw, 28px); font-weight: 900;
       letter-spacing: 1px; line-height: 1.08;
@@ -270,6 +277,7 @@
 
     <div id="overlay-card">
       <div class="ov-badge" id="ov-badge">115 BPM LO-FI RUNNER</div>
+      <div class="ov-streak" id="streak-el" style="display:none"></div>
       <div class="ov-title" id="ov-title">VIBEHOP</div>
       <div class="ov-sub" id="ov-sub">TAP CANVAS OR PRESS SPACE TO FLOW</div>
 
@@ -316,6 +324,9 @@
         return Number.isNaN(val) ? fallback : val;
       } catch (_) { return fallback; }
     },
+    get(key, fallback = '') {
+      try { return localStorage.getItem(key) ?? fallback; } catch (_) { return fallback; }
+    },
     set(key, val) {
       try { localStorage.setItem(key, String(val)); } catch (_) {}
     }
@@ -332,8 +343,10 @@
     };
   }
 
-  function getTodaySeedInt() {
+  // VH-13/VH-19/VH-22: UTC calendar-day integer (YYYYMMDD); negative offsetDays reach "yesterday"
+  function utcDateInt(offsetDays = 0) {
     const d = new Date();
+    d.setUTCDate(d.getUTCDate() + offsetDays);
     return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
   }
 
@@ -677,20 +690,39 @@
     avatarStrip: document.getElementById('avatar-strip'),
     missionsList: document.getElementById('missions-list'),
     missionRank: document.getElementById('mission-rank-lbl'),
-    metaTheme: document.getElementById('meta-theme-color')
+    metaTheme: document.getElementById('meta-theme-color'),
+    streak: document.getElementById('streak-el')
   };
-
   let bestScore = Storage.getInt('vibehop_best', 0);
   // VH-18: best score is persisted only on pause/game-over (plus pagehide backstop) — never per frame
   let bestPersisted = bestScore;
+  // VH-19: the Daily Seed best lives in its own per-UTC-date key; endless runs never touch it and vice versa
+  let dailyBestDate = utcDateInt();
+  let dailyBest = Storage.getInt(`vibehop_daily_best_${dailyBestDate}`, 0);
+  let dailyBestPersisted = dailyBest;
 
   function persistBest() {
-    if (bestScore === bestPersisted) return;
-    bestPersisted = bestScore;
-    Storage.set('vibehop_best', bestPersisted);
+    if (bestScore !== bestPersisted) {
+      bestPersisted = bestScore;
+      Storage.set('vibehop_best', bestPersisted);
+    }
+    if (dailyBest !== dailyBestPersisted) {
+      dailyBestPersisted = dailyBest;
+      Storage.set(`vibehop_daily_best_${dailyBestDate}`, dailyBest);
+    }
   }
 
   window.addEventListener('pagehide', persistBest);
+
+  // VH-22: one streak day per UTC date of play — consecutive days chain the streak, a skipped day restarts it
+  function recordStreakDay() {
+    const today = utcDateInt();
+    if (state.lastPlayDate === today) return;
+    state.streak = utcDateInt(-1) === state.lastPlayDate ? state.streak + 1 : 1;
+    state.lastPlayDate = today;
+    Storage.set('vibehop_streak', state.streak);
+    Storage.set('vibehop_last_play_date', state.lastPlayDate);
+  }
 
   const state = {
     mode: 'START', // START, PLAY, PAUSED, RESUMING, OVER
@@ -701,6 +733,8 @@
     themeIdx: Storage.getInt('vibehop_theme', 0),
     avatarIdx: Storage.getInt('vibehop_avatar', 0),
     vibeRank: Storage.getInt('vibehop_rank', 1),
+    streak: Storage.getInt('vibehop_streak', 0), // VH-22: consecutive-UTC-day play streak
+    lastPlayDate: Storage.getInt('vibehop_last_play_date', 0), // VH-22: YYYYMMDD of last streak day
     score: 0,
     mult: 1,
     maxMult: 1,
@@ -742,6 +776,17 @@
       }
     }
     floatingTexts.push({ x, y: targetY, text, color, life: 1.0, vy: -1.4 });
+  }
+
+  // VH-19: first-run diegetic callouts — each mechanic teaches itself once, ever, in world space
+  const TIP_CALLOUTS = { drone: 'STAY LOW!', ring: 'TAP IN RING!', rail: 'LAND ON RAIL!' };
+  const seenTips = new Set(Storage.get('vibehop_seen_tips', '').split(',').filter(Boolean));
+
+  function showTip(kind, x, y) {
+    if (seenTips.has(kind)) return;
+    seenTips.add(kind);
+    Storage.set('vibehop_seen_tips', [...seenTips].join(','));
+    spawnFloatingText(x, y, TIP_CALLOUTS[kind], COLORS.mint);
   }
 
   function spawnBurst(x, y, color, count = 16) {
@@ -946,8 +991,9 @@
 
   function setDailyMode(enabled) {
     state.dailyMode = Boolean(enabled);
-    ui.dailyBtn.textContent = state.dailyMode ? `📅 DAILY #${getTodaySeedInt() % 10000}` : '📅 DAILY SEED: OFF';
+    ui.dailyBtn.textContent = state.dailyMode ? `📅 DAILY #${utcDateInt() % 10000}` : '📅 DAILY SEED: OFF';
     ui.dailyBtn.classList.toggle('active', state.dailyMode);
+    updateHUD(); // VH-19: swap the BEST/DAILY BEST label the moment daily mode flips
   }
 
   ui.zenBtn.addEventListener('click', (e) => { e.stopPropagation(); setZenMode(!state.zenMode); });
@@ -1004,8 +1050,9 @@
   ui.shareBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     const s = Math.floor(state.score);
-    const modeTag = state.dailyMode ? `📅 Daily #${getTodaySeedInt()}` : THEMES[state.themeIdx].name;
-    const shareText = `🎧 VibeHop Score: ${s} (${state.maxMult}x VIBE)\n📼 Tape Lvl ${state.vibeRank} • ${modeTag}\nCan you beat my flow?`;
+    const modeTag = state.dailyMode ? `📅 Daily #${utcDateInt()}` : THEMES[state.themeIdx].name;
+    const streakTag = state.streak >= 1 ? ` • 🔥 ${state.streak}-DAY FLOW` : '';
+    const shareText = `🎧 VibeHop Score: ${s} (${state.maxMult}x VIBE)\n📼 Tape Lvl ${state.vibeRank} • ${modeTag}${streakTag}\nCan you beat my flow?`;
     const payload = { title: 'VibeHop — Lo-Fi Rhythm Runner', text: shareText, url: window.location.href };
     try {
       const blob = await generateShareCardBlob();
@@ -1040,19 +1087,27 @@
   resize();
 
   // VH-18: dirty-checked HUD — DOM nodes are only touched when a displayed value changed
-  const hudCache = { score: -1, best: -1, mult: -1, pips: -1, zen: null };
+  const hudCache = { score: -1, best: -1, bestDaily: false, mult: -1, pips: -1, zen: null };
 
   function updateHUD() {
     const s = Math.floor(state.score);
-    if (s > bestScore) bestScore = s;
+    if (state.dailyMode) {
+      if (s > dailyBest) dailyBest = s; // VH-19: daily runs lift today's record, never the endless one
+    } else if (s > bestScore) {
+      bestScore = s;
+    }
 
     if (hudCache.score !== s) {
       hudCache.score = s;
       ui.score.textContent = String(s).padStart(4, '0');
     }
-    if (hudCache.best !== bestScore) {
-      hudCache.best = bestScore;
-      ui.best.textContent = `BEST ${String(bestScore).padStart(4, '0')}`;
+    const bestShown = state.dailyMode ? dailyBest : bestScore;
+    if (hudCache.best !== bestShown || hudCache.bestDaily !== state.dailyMode) {
+      hudCache.best = bestShown;
+      hudCache.bestDaily = state.dailyMode;
+      ui.best.textContent = state.dailyMode
+        ? `DAILY BEST ${String(bestShown).padStart(4, '0')}`
+        : `BEST ${String(bestShown).padStart(4, '0')}`;
     }
     if (hudCache.mult !== state.mult || hudCache.zen !== state.zenMode) {
       hudCache.mult = state.mult;
@@ -1072,6 +1127,14 @@
       return;
     }
     ui.card.classList.remove('hidden');
+    // VH-22: the return-streak pill belongs to the Start card only
+    if (mode === 'START' && state.streak >= 1) {
+      ui.streak.textContent = `🔥 ${state.streak}-DAY FLOW`;
+      ui.streak.style.display = 'inline-block';
+    } else {
+      ui.streak.style.display = 'none';
+    }
+    ui.card.classList.remove('hidden');
     if (mode === 'START') {
       ui.badge.textContent = `${THEMES[state.themeIdx].bpm} BPM LO-FI RUNNER`;
       ui.title.textContent = 'VIBEHOP';
@@ -1084,7 +1147,9 @@
       ui.shareBtn.style.display = 'none';
     } else if (mode === 'OVER') {
       const s = Math.floor(state.score);
-      ui.badge.textContent = s >= bestScore && s > 0 ? '★ NEW HIGH VIBE ★' : 'VIBE CHECK COMPLETE';
+      // VH-19: daily runs medal against today's own record, endless against the all-time record
+      const activeBest = state.dailyMode ? dailyBest : bestScore;
+      ui.badge.textContent = s >= activeBest && s > 0 ? '★ NEW HIGH VIBE ★' : 'VIBE CHECK COMPLETE';
       ui.title.textContent = `SCORE: ${s}`;
       ui.sub.textContent = 'TAP CANVAS OR PRESS SPACE TO FLOW AGAIN';
       ui.shareBtn.style.display = 'inline-block';
@@ -1092,7 +1157,12 @@
   }
 
   function resetGame() {
-    rng = state.dailyMode ? createMulberry32(getTodaySeedInt()) : Math.random;
+    rng = state.dailyMode ? createMulberry32(utcDateInt()) : Math.random;
+    // VH-19: every run reloads today's daily best — covers a UTC-date rollover mid-session.
+    // Safe because every run exit (pause/game-over/pagehide) persists the cache first.
+    dailyBestDate = utcDateInt();
+    dailyBest = dailyBestPersisted = Storage.getInt(`vibehop_daily_best_${dailyBestDate}`, 0);
+    recordStreakDay(); // VH-22: a day with a started run joins the streak chain
     Object.assign(state, {
       mode: 'PLAY', score: 0, mult: 1, maxMult: 1, pips: 3,
       speed: 6.2, distance: 0, nextSpawnDist: 280,
@@ -1377,6 +1447,10 @@
     for (let i = rails.length - 1; i >= 0; i--) {
       const rl = rails[i];
       rl.x -= curSpeed;
+      // VH-19: first-run callout as the rail slides into approach range
+      if (rl.x + rl.w > player.x - 30 && rl.x < player.x + 200) {
+        showTip('rail', rl.x + rl.w * 0.5, rl.y - 22);
+      }
       const withinX = player.x >= rl.x - player.r * 0.5 && player.x <= rl.x + rl.w + player.r * 0.5;
       const newBottom = player.y + player.r;
       if (withinX && player.vy >= 0 && prevBottom <= rl.y + 14 && newBottom >= rl.y - 4) {
@@ -1438,6 +1512,10 @@
       const ob = obstacles[i];
       ob.x -= curSpeed;
       if (!ob.shattered) {
+        // VH-19: first-run callout while the gate approaches — the grounded corridor stays safe
+        if (ob.kind === 'drone' && Math.abs(ob.x + ob.w * 0.5 - player.x) < 210) {
+          showTip('drone', ob.x + ob.w * 0.5, ob.y + ob.h + 26);
+        }
         const rx = ob.x + ob.w * 0.15, ry = ob.y + ob.h * 0.15;
         const cx = Math.max(rx, Math.min(player.x, rx + ob.w * 0.7));
         const cy = Math.max(ry, Math.min(player.y, ry + ob.h * 0.7));
@@ -1482,6 +1560,10 @@
       const rg = rings[i];
       rg.x -= curSpeed;
       rg.pulse += 0.1 * dt;
+      // VH-19: first-run callout as the ring enters tap-to-dash range
+      if (Math.abs(rg.x - player.x) < 150 && Math.abs(rg.y - player.y) < 150) {
+        showTip('ring', rg.x, rg.y - rg.r - 14);
+      }
       if (rg.x + rg.r < -60) rings.splice(i, 1);
     }
 
@@ -1787,9 +1869,11 @@
     THEMES, AVATARS, COLORS, state, player, audio,
     obstacles, rings, orbs, rails, particles, floatingTexts, dustMotes,
     get groundY() { return groundY; },
+    get dailyBest() { return dailyBest; },
     setVibeRank, selectTheme, selectAvatar,
     setZenMode, setDailyMode, setMuted, togglePause,
     generateShareCardBlob, spawnFloatingText,
+    seenTips, recordStreakDay, utcDateInt,
     getMissions: () => activeMissions,
     recordMissionProgress, resetGame, showOverlay,
     triggerPress, triggerRelease, update, draw, updateHUD
