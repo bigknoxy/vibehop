@@ -4,6 +4,7 @@ import functools
 import http.server
 import os
 import socketserver
+import struct
 import sys
 import threading
 from playwright.sync_api import sync_playwright
@@ -25,6 +26,27 @@ def start_ephemeral_server():
     return httpd, f"http://127.0.0.1:{port}/"
 
 
+def check_repo_assets():
+    """VH-24: static repo asset checks — valid 1200x630 PNG plus sw.js/workflow wiring (no browser)."""
+    png_path = os.path.join(REPO_ROOT, 'og-card.png')
+    assert os.path.isfile(png_path), "VH-24 FALSIFIER: og-card.png missing at repo root"
+    with open(png_path, 'rb') as f:
+        header = f.read(24)
+    assert header[:8] == b'\x89PNG\r\n\x1a\n' and header[12:16] == b'IHDR', "og-card.png is not a valid PNG"
+    width, height = struct.unpack('>II', header[16:24])
+    assert (width, height) == (1200, 630), f"og-card.png must be 1200x630, got {width}x{height}"
+
+    sw_text = open(os.path.join(REPO_ROOT, 'sw.js')).read()
+    assert 'vibehop-pwa-v8' in sw_text, "VH-24: sw.js cache name must be bumped past v7 so new assets are cached"
+    assert "'./icon.svg'" in sw_text and "'./og-card.png'" in sw_text, \
+        "VH-24 FALSIFIER: sw.js ASSETS must cache ./icon.svg and ./og-card.png"
+
+    deploy_yml = open(os.path.join(REPO_ROOT, '.github/workflows/deploy-pages.yml')).read()
+    assert 'icon.svg' in deploy_yml and 'og-card.png' in deploy_yml, \
+        "VH-24: deploy-pages.yml must stage icon.svg and og-card.png into _site/"
+    print("  ✅ [VH-24] og-card.png is a valid 1200x630 PNG; sw.js ASSETS & deploy workflow wired")
+
+
 def run_tests():
     httpd = None
     url = os.environ.get("TEST_URL")
@@ -32,6 +54,7 @@ def run_tests():
         httpd, url = start_ephemeral_server()
 
     print(f"🧪 Launching VibeHop Deterministic E2E + Falsifier Suite against {url}")
+    check_repo_assets()
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(
@@ -71,12 +94,19 @@ def run_tests():
             meta_res = page.evaluate("""() => ({
                 ogTitle: document.querySelector('meta[property="og:title"]')?.content,
                 ogUrl: document.querySelector('meta[property="og:url"]')?.content,
+                ogImage: document.querySelector('meta[property="og:image"]')?.content,
+                twImage: document.querySelector('meta[name="twitter:image"]')?.content,
                 twCard: document.querySelector('meta[name="twitter:card"]')?.content
             })""")
             assert meta_res["ogTitle"] and "VibeHop" in meta_res["ogTitle"]
             assert meta_res["ogUrl"] and "bigknoxy.github.io/vibehop" in meta_res["ogUrl"]
             assert meta_res["twCard"] == "summary_large_image"
-            print("  ✅ [VH-16] Social OpenGraph & Twitter Card metadata verified")
+            OG_CARD_URL = "https://bigknoxy.github.io/vibehop/og-card.png"
+            assert meta_res["ogImage"] == OG_CARD_URL, \
+                f"VH-24 FALSIFIER: og:image must be the 1200x630 og-card.png, got {meta_res['ogImage']}"
+            assert meta_res["twImage"] == OG_CARD_URL, \
+                f"VH-24 FALSIFIER: twitter:image must be the 1200x630 og-card.png, got {meta_res['twImage']}"
+            print("  ✅ [VH-16 & VH-24] Social OpenGraph & Twitter Card metadata verified")
 
             # 3. VH-11: Progression Gating
             gating_res = page.evaluate("""() => {
@@ -345,6 +375,65 @@ def run_tests():
             assert touch_res["heldAfterRepress"] and touch_res["releasedByActiveCancel"], \
                 "VH-18: the active pointer's own pointercancel must release the hold"
             print("  ✅ [VH-18] Multi-touch: foreign pointerup/cancel no longer drop the hold; active cancel releases")
+
+            # 13. VH-20: Master Glue Compressor — every synth voice routes through a DynamicsCompressorNode
+            comp_res = page.evaluate("""() => {
+                const comp = window.__VIBEHOP__.audio.compressor;
+                return {
+                    isCompressor: comp instanceof window.DynamicsCompressorNode,
+                    threshold: comp ? comp.threshold.value : null,
+                    ratio: comp ? comp.ratio.value : null
+                };
+            }""")
+            assert comp_res["isCompressor"], "VH-20 FALSIFIER: audio.compressor is not a DynamicsCompressorNode"
+            assert -30 <= comp_res["threshold"] <= -10 and comp_res["ratio"] >= 4, \
+                f"VH-20: compressor must actually grip the mix: {comp_res}"
+            print(f"  ✅ [VH-20] DynamicsCompressorNode grips the master bus (threshold {comp_res['threshold']}dB, ratio {comp_res['ratio']})")
+
+            # 14. VH-24: 3-Beat Resume Count-In — PAUSED → RESUMING freezes the world, then lands on PLAY
+            count_res = page.evaluate("""() => {
+                const api = window.__VIBEHOP__;
+                api.resetGame();                        // fresh PLAY run
+                const gate = { x: api.player.x - 10, y: api.groundY - 108, w: 60, h: 56, kind: 'drone', shattered: false, grazed: false };
+                api.obstacles.push(gate);
+                api.togglePause();                      // PLAY → PAUSED
+                api.togglePause();                      // PAUSED → RESUMING count-in, never instant PLAY
+                const modeOnUnpause = api.state.mode;
+                const resumeFramesAtStart = api.state.resumeFrames;
+                const expectedCountFrames = Math.round(3 * 3600 / api.audio.bpm);
+                api.player.grounded = false;            // airborne snapshot — physics must hold still
+                api.player.vy = -6;
+                api.state.distance = 0;
+                const gateX0 = gate.x, playerY0 = api.player.y, vy0 = api.player.vy, dist0 = api.state.distance;
+                api.update(1.0);                        // one frozen count-in frame
+                const frozen = {
+                    gate: gate.x === gateX0,
+                    player: api.player.y === playerY0 && api.player.vy === vy0,
+                    distance: api.state.distance === dist0
+                };
+                for (let i = 0; i < 200 && api.state.mode === 'RESUMING'; i++) api.update(1.0);
+                return { modeOnUnpause, resumeFramesAtStart, expectedCountFrames, frozen, finishedMode: api.state.mode };
+            }""")
+            assert count_res["modeOnUnpause"] == "RESUMING", \
+                "VH-24 FALSIFIER: unpausing must enter RESUMING, not instant PLAY"
+            assert count_res["resumeFramesAtStart"] > 0, "VH-24: RESUMING must carry a positive resumeFrames countdown"
+            assert count_res["resumeFramesAtStart"] == count_res["expectedCountFrames"], \
+                f"VH-24: count-in must be exactly 3 beats long: {count_res}"
+            assert count_res["frozen"]["gate"] and count_res["frozen"]["player"] and count_res["frozen"]["distance"], \
+                f"VH-24: obstacles and physics must freeze during the count-in: {count_res['frozen']}"
+            assert count_res["finishedMode"] == "PLAY", "VH-24: countdown must land on PLAY with physics live again"
+            print(f"  ✅ [VH-24] 3-beat resume count-in: PAUSED → RESUMING ({count_res['resumeFramesAtStart']} frames frozen) → PLAY")
+
+            # 15. VH-24: og-card.png is a real, browser-decodable 1200x630 PNG on the served site
+            png_res = page.evaluate("""async () => {
+                const img = new Image();
+                img.src = 'og-card.png';
+                await img.decode();
+                return { w: img.naturalWidth, h: img.naturalHeight };
+            }""")
+            assert png_res["w"] == 1200 and png_res["h"] == 630, \
+                f"VH-24 FALSIFIER: served og-card.png decodes as {png_res}, want 1200x630"
+            print("  ✅ [VH-24] Served og-card.png decodes in-browser at 1200x630")
 
             assert len(errors) == 0, f"Runtime console errors detected: {errors}"
             browser.close()

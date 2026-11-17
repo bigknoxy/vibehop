@@ -26,13 +26,25 @@ jobs:
           test -f index.html
           test -f manifest.json
           test -f sw.js
+          test -f icon.svg
+          test -f og-card.png
           python3 -m json.tool manifest.json > /dev/null
-          echo "✅ PWA assets validated successfully."
+          python3 - <<'PY'
+          import struct
+
+          with open('og-card.png', 'rb') as f:
+              header = f.read(24)
+          assert header[:8] == b'\x89PNG\r\n\x1a\n', 'og-card.png is not a PNG'
+          assert header[12:16] == b'IHDR', 'og-card.png IHDR missing'
+          width, height = struct.unpack('>II', header[16:24])
+          assert (width, height) == (1200, 630), f'og-card.png {width}x{height}, want 1200x630'
+          PY
+          echo "✅ PWA + OG assets validated successfully."
 
       - name: Prepare clean _site artifact
         run: |
           mkdir -p _site
-          cp index.html manifest.json sw.js _site/
+          cp index.html manifest.json sw.js icon.svg og-card.png _site/
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

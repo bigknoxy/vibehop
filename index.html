@@ -7,13 +7,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VibeHop">
-  <!-- VH-16: OpenGraph & Twitter Card Social Metadata -->
+  <!-- VH-16 & VH-24: OpenGraph & Twitter Card Social Metadata (1200x630 og-card.png) -->
   <meta name="description" content="Chill 115 BPM Lo-Fi Neon Rhythm-Runner & Offline PWA — zero dependencies, procedural Web Audio synth, grind rails & forgiving flow-state platforming.">
   <meta property="og:type" content="website">
   <meta property="og:title" content="VibeHop — Lo-Fi Neon Rhythm Runner">
   <meta property="og:description" content="Flow to 115 BPM procedural lo-fi beats, grind neon synth-rails, unlock cassette biomes, and share your Vibe Card.">
   <meta property="og:url" content="https://bigknoxy.github.io/vibehop/">
-  <meta property="og:image" content="https://raw.githubusercontent.com/bigknoxy/vibehop/main/icon.svg">
+  <meta property="og:image" content="https://bigknoxy.github.io/vibehop/og-card.png">
+  <meta name="twitter:image" content="https://bigknoxy.github.io/vibehop/og-card.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="VibeHop — Lo-Fi Neon Rhythm Runner">
   <meta name="twitter:description" content="Chill 115 BPM Lo-Fi Neon Rhythm-Runner & Offline PWA.">
@@ -419,12 +420,13 @@
 
   const COLORS = { ...THEMES[0] };
 
-  // --- 3. Web Audio Synthesizer (Master Muffle Filter + Mute + Dynamic Stems) ---
+  // --- 3. VH-20 Web Audio Synthesizer (Muffle Filter → Glue Compressor → Master Gain + Dynamic Stems) ---
   class LoFiAudio {
     constructor(getState) {
       this.getState = getState;
       this.ctx = null;
       this.masterFilter = null;
+      this.compressor = null;
       this.masterGain = null;
       this.isPlaying = false;
       this.anchorTime = 0;
@@ -449,7 +451,8 @@
 
     // VH-15: Master Low-Pass Filter Target (Underwater Muffle on Overlay/Paused)
     getMasterFilterTarget(mode) {
-      return mode === 'PLAY' ? 18000 : 420;
+      // RESUMING lifts the muffle with the count-in so the count ticks ring out clean
+      return mode === 'PLAY' || mode === 'RESUMING' ? 18000 : 420;
     }
 
     getMasterGainValue() {
@@ -494,9 +497,18 @@
         this.masterFilter = this.ctx.createBiquadFilter();
         this.masterFilter.type = 'lowpass';
         this.masterFilter.frequency.setValueAtTime(18000, this.ctx.currentTime);
+        // VH-20: glue compressor between filter and master gain — chords, kick, orb & PERFECT
+        // sfx all sum into one bus, so mobile speakers keep headroom instead of clipping
+        this.compressor = this.ctx.createDynamicsCompressor();
+        this.compressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
+        this.compressor.knee.setValueAtTime(24, this.ctx.currentTime);
+        this.compressor.ratio.setValueAtTime(8, this.ctx.currentTime);
+        this.compressor.attack.setValueAtTime(0.004, this.ctx.currentTime);
+        this.compressor.release.setValueAtTime(0.22, this.ctx.currentTime);
         this.masterGain = this.ctx.createGain();
         this.masterGain.gain.setValueAtTime(this.getMasterGainValue(), this.ctx.currentTime);
-        this.masterFilter.connect(this.masterGain);
+        this.masterFilter.connect(this.compressor);
+        this.compressor.connect(this.masterGain);
         this.masterGain.connect(this.ctx.destination);
 
         const len = Math.floor(this.ctx.sampleRate * 0.2);
@@ -636,6 +648,11 @@
     sfxShieldBreak() {
       this.playTone({ type: 'sawtooth', freq: 190, endFreq: 65, duration: 0.3, gainPeak: 0.15 });
     }
+
+    // VH-24: resume count-in tick — the final count lands an accent octave up
+    sfxCountTick(beat) {
+      this.playTone({ type: 'triangle', freq: beat === 1 ? 880 : 659.26, duration: 0.09, gainPeak: 0.14 });
+    }
   }
 
   // --- 4. Core State & DOM References ---
@@ -676,7 +693,8 @@
   window.addEventListener('pagehide', persistBest);
 
   const state = {
-    mode: 'START', // START, PLAY, PAUSED, OVER
+    mode: 'START', // START, PLAY, PAUSED, RESUMING, OVER
+    resumeFrames: 0, // VH-24: remaining count-in frames while RESUMING
     zenMode: false,
     dailyMode: false,
     muted: Storage.getInt('vibehop_muted', 0) === 1,
@@ -863,6 +881,9 @@
   }
 
   // --- 6. Session Lifecycle: Mute, Pause, Zen, Daily Seed & Share Card ---
+  // VH-24: unpausing always runs a deterministic 3-beat count-in (~1.5s @ 115 BPM)
+  const RESUME_COUNT_BEATS = 3;
+
   function setMuted(muted) {
     state.muted = Boolean(muted);
     Storage.set('vibehop_muted', state.muted ? 1 : 0);
@@ -880,11 +901,24 @@
       audio.syncMasterChain();
       showOverlay('PAUSED');
     } else if (state.mode === 'PAUSED') {
-      state.mode = 'PLAY';
-      ui.pauseBtn.textContent = '⏸️';
+      countInResume();
+    } else if (state.mode === 'RESUMING') {
+      // bailing out of the count-in returns straight to PAUSED
+      state.mode = 'PAUSED';
+      state.resumeFrames = 0;
       audio.syncMasterChain();
-      showOverlay('PLAY');
+      showOverlay('PAUSED');
     }
+  }
+
+  // VH-24: PAUSED → RESUMING — the world stays frozen while the beat-synced count-in runs
+  function countInResume() {
+    state.mode = 'RESUMING';
+    state.resumeFrames = Math.round(RESUME_COUNT_BEATS * (3600 / audio.bpm));
+    ui.pauseBtn.textContent = '▶️';
+    audio.syncMasterChain();
+    audio.sfxCountTick(3);
+    showOverlay('PLAY');
   }
 
   ui.muteBtn.addEventListener('click', (e) => {
@@ -1062,7 +1096,7 @@
     Object.assign(state, {
       mode: 'PLAY', score: 0, mult: 1, maxMult: 1, pips: 3,
       speed: 6.2, distance: 0, nextSpawnDist: 280,
-      invulnFrames: 0, shakeFrames: 0, jumpBuffer: 0, coyoteFrames: 6
+      invulnFrames: 0, shakeFrames: 0, jumpBuffer: 0, coyoteFrames: 6, resumeFrames: 0
     });
     ui.pauseBtn.textContent = '⏸️';
     player.x = Math.min(130, Math.max(68, W * 0.22));
@@ -1081,6 +1115,7 @@
 
     if (state.mode === 'START') { resetGame(); return; }
     if (state.mode === 'PAUSED') { togglePause(); return; }
+    if (state.mode === 'RESUMING') return; // taps during the count-in are no-ops, not queued jumps
     if (state.mode === 'OVER') {
       if (state.overLockoutFrames <= 0) resetGame();
       return;
@@ -1261,12 +1296,33 @@
     }
   }
 
+  // VH-24: consume one count-in frame — tick each beat boundary, then release into PLAY
+  function tickCountIn(dt) {
+    const beatFrames = 3600 / audio.bpm; // dt-units per beat on the 60fps frame clock
+    const beatBefore = Math.ceil(state.resumeFrames / beatFrames);
+    state.resumeFrames -= dt;
+    if (state.resumeFrames <= 0) {
+      state.resumeFrames = 0;
+      state.mode = 'PLAY';
+      ui.pauseBtn.textContent = '⏸️';
+      audio.syncMasterChain();
+      return;
+    }
+    const beatAfter = Math.ceil(state.resumeFrames / beatFrames);
+    if (beatAfter < beatBefore) audio.sfxCountTick(beatAfter);
+  }
+
   function update(dt) {
     if (state.mode === 'PAUSED') return;
     // VH-18: ambient dust drifts here, dt-scaled, instead of mutating inside draw() — so it freezes on pause
     for (const m of dustMotes) {
       m.x -= m.s * dt;
       if (m.x < 0) m.x += W;
+    }
+    // VH-24: during the count-in only the count itself and ambient dust move — world frozen
+    if (state.mode === 'RESUMING') {
+      tickCountIn(dt);
+      return;
     }
     if (state.mode === 'OVER') {
       if (state.overLockoutFrames > 0) state.overLockoutFrames -= dt;
@@ -1697,6 +1753,22 @@
       ctx.fillText(ft.text, ft.x, ft.y);
     }
     ctx.globalAlpha = 1;
+
+    // VH-24: beat-synced 3·2·1 resume count-in painted over the frozen world
+    if (state.mode === 'RESUMING') {
+      const count = Math.max(1, Math.ceil(state.resumeFrames / (3600 / audio.bpm)));
+      const digitSize = Math.min(150, Math.round(H * 0.17));
+      withGlow(COLORS.amber, 26, () => {
+        ctx.fillStyle = COLORS.amber;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `900 ${digitSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.fillText(String(count), W / 2, H * 0.36);
+      });
+      ctx.fillStyle = COLORS.mint;
+      ctx.font = '800 13px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('GET READY', W / 2, H * 0.36 + digitSize / 2 + 24);
+    }
 
     ctx.restore();
   }

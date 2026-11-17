@@ -1,8 +1,10 @@
-const CACHE_NAME = 'vibehop-pwa-v7';
+const CACHE_NAME = 'vibehop-pwa-v8';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './icon.svg',
+  './og-card.png'
 ];
 
 self.addEventListener('install', (event) => {
